@@ -17,6 +17,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { MoreHorizontalIcon, FolderIcon, ShareIcon, Trash2Icon } from "lucide-react"
+import Link from "next/link"
 
 export function NavDocuments({
   items,
@@ -34,9 +35,9 @@ export function NavDocuments({
       <SidebarMenu>
         {items.map((item) => (
           <SidebarMenuItem key={item.name}>
-            <SidebarMenuButton render={<a href={item.url} />}>
+            <SidebarMenuButton>
               {item.icon}
-              <span>{item.name}</span>
+              <Link href={item.name}><span>{item.name}</span></Link> 
             </SidebarMenuButton>
             <DropdownMenu>
               <DropdownMenuTrigger
@@ -49,7 +50,7 @@ export function NavDocuments({
               >
                 <MoreHorizontalIcon
                 />
-                <span className="sr-only">More</span>
+             <Link href="more"><span className="sr-only">More</span></Link>    
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 className="w-24"
@@ -59,18 +60,18 @@ export function NavDocuments({
                 <DropdownMenuItem>
                   <FolderIcon
                   />
-                  <span>Open</span>
+                  <Link href="open"><span>Open</span></Link>  
                 </DropdownMenuItem>
                 <DropdownMenuItem>
                   <ShareIcon
                   />
-                  <span>Share</span>
+                 <Link href="share"><span>Share</span></Link>   
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem variant="destructive">
                   <Trash2Icon
                   />
-                  <span>Delete</span>
+                <Link href="delete">  <span>Delete</span></Link>  
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

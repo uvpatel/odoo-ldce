@@ -1,11 +1,27 @@
 import { defineRelationsPart } from "drizzle-orm";
 import {
   pgTable,
+  pgEnum,
   text,
   timestamp,
   boolean,
   index,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
+
+export const userRoleEnum = pgEnum("user_role", [
+  "employee",
+  "manager",
+  "hr",
+  "admin",
+  "super_admin",
+]);
+
+export const userStatusEnum = pgEnum("user_status", [
+  "active",
+  "inactive",
+  "suspended",
+]);
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -13,6 +29,8 @@ export const user = pgTable("user", {
   email: text("email").notNull().unique(),
   emailVerified: boolean("email_verified").default(false).notNull(),
   image: text("image"),
+  role: userRoleEnum("role").default("employee").notNull(),
+  status: userStatusEnum("status").default("active").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()
@@ -59,8 +77,12 @@ export const account = pgTable(
     updatedAt: timestamp("updated_at")
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
+    issuer: text("issuer"),
   },
-  (table) => [index("account_userId_idx").on(table.userId)],
+  (table) => [
+    index("account_userId_idx").on(table.userId),
+    uniqueIndex("account_issuer_accountId_uidx").on(table.issuer, table.accountId),
+  ],
 );
 
 export const verification = pgTable(
@@ -107,3 +129,9 @@ export const authRelations = defineRelationsPart(
   })
 );
 
+export type User = typeof user.$inferSelect;
+export type NewUser = typeof user.$inferInsert;
+export type Session = typeof session.$inferSelect;
+export type NewSession = typeof session.$inferInsert;
+export type Account = typeof account.$inferSelect;
+export type Verification = typeof verification.$inferSelect;

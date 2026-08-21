@@ -8,9 +8,9 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { CirclePlusIcon, MailIcon } from "lucide-react"
+import { CirclePlusIcon } from "lucide-react"
 import Link from "next/link"
-import  { ModeToggle } from "@/components/modetoggle"
+import { ModeToggle } from "@/components/modetoggle"
 
 export function NavMain({
   items,

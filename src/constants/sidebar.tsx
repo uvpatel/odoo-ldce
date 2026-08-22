@@ -14,11 +14,8 @@ import {
   GlobeIcon,
   CircleHelpIcon,
   SearchIcon,
-  UserIcon,
-  SlidersIcon,
-  LockIcon,
-  ShieldAlertIcon,
-  BarChart3Icon,
+  PlusCircleIcon,
+  MapPinIcon,
 } from "lucide-react"
 import { can, type Permission } from "@/lib/auth/permissions"
 import type { UserRole } from "@/lib/auth/roles"
@@ -55,7 +52,7 @@ export const baseNavMain: NavItem[] = [
   },
   {
     title: "My Trips",
-    url: "/dashboard/trips",
+    url: "/trips",
     icon: <PlaneIcon className="size-4" />,
     permission: null,
     items: [
@@ -64,7 +61,7 @@ export const baseNavMain: NavItem[] = [
         url: "/trips",
       },
       {
-        title: "Create Trip",
+        title: "Plan New Trip",
         url: "/trips/new",
       },
     ],
@@ -76,7 +73,7 @@ export const baseNavMain: NavItem[] = [
     permission: null,
     items: [
       {
-        title: "Overview",
+        title: "Explore",
         url: "/discover",
       },
       {
@@ -90,19 +87,13 @@ export const baseNavMain: NavItem[] = [
     ],
   },
   {
-    title: "Saved Places",
+    title: "Saved",
     url: "/saved",
     icon: <BookmarkIcon className="size-4" />,
     permission: null,
   },
   {
-    title: "User Management",
-    url: "/dashboard/users",
-    icon: <UsersIcon className="size-4" />,
-    permission: "user.role.manage",
-  },
-  {
-    title: "Admin Panel",
+    title: "Admin",
     url: "/admin",
     icon: <ShieldIcon className="size-4" />,
     permission: "reports.read",
@@ -137,15 +128,9 @@ export const baseNavMain: NavItem[] = [
 
 export const baseDocuments: SidebarDocumentItem[] = [
   {
-    name: "Itinerary Planner",
-    url: "/dashboard/trips",
-    icon: <RouteIcon className="size-4" />,
-    permission: null,
-  },
-  {
-    name: "Budget & Expenses",
-    url: "/budget",
-    icon: <WalletCardsIcon className="size-4" />,
+    name: "Plan New Trip",
+    url: "/trips/new",
+    icon: <PlusCircleIcon className="size-4" />,
     permission: null,
   },
   {
@@ -155,7 +140,7 @@ export const baseDocuments: SidebarDocumentItem[] = [
     permission: null,
   },
   {
-    name: "Activities Guide",
+    name: "Find Activities",
     url: "/discover/activities",
     icon: <SparklesIcon className="size-4" />,
     permission: null,
@@ -188,21 +173,15 @@ export const baseNavSecondary: NavItem[] = [
     ],
   },
   {
-    title: "Explore Public Trips",
-    url: "/explore",
-    icon: <GlobeIcon className="size-4" />,
-    permission: null,
-  },
-  {
-    title: "Help & Support",
-    url: "/get-help",
-    icon: <CircleHelpIcon className="size-4" />,
-    permission: null,
-  },
-  {
     title: "Search Catalog",
     url: "/discover",
     icon: <SearchIcon className="size-4" />,
+    permission: null,
+  },
+  {
+    title: "Get Help",
+    url: "/dashboard",
+    icon: <CircleHelpIcon className="size-4" />,
     permission: null,
   },
 ]
@@ -215,7 +194,7 @@ export function getFilteredSidebarData(user?: {
   role?: UserRole | string
   status?: string | null
 }) {
-  const userRole = (user?.role as UserRole) || "employee"
+  const userRole = (user?.role as UserRole) || "user"
   const userStatus = user?.status || "active"
   const authUser = { role: userRole, status: userStatus }
 

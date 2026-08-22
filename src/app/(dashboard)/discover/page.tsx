@@ -1,184 +1,294 @@
-import * as React from "react"
-import Link from "next/link"
+"use client";
+
+import * as React from "react";
+import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api-client";
+import { catalogKeys } from "@/lib/query-keys";
 import {
   CompassIcon,
-  MapPinIcon,
-  SparklesIcon,
-  Building2Icon,
-  ArrowRightIcon,
   SearchIcon,
+  MapPinIcon,
   StarIcon,
-} from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+  ArrowRightIcon,
+  SparklesIcon,
+  BookmarkIcon,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useToggleSaveDestination, useSavedDestinations } from "@/features/discover/hooks/use-discover";
+import type { City, Activity } from "@/features/discover/api/discover.api";
 
-const POPULAR_CITIES = [
-  {
-    id: "tokyo",
-    name: "Tokyo",
-    country: "Japan",
-    image: "https://images.unsplash.com/photo-1503899036084-c55cdd92da26?w=600&auto=format&fit=crop&q=60",
-    activitiesCount: 142,
-    costIndex: "$$$",
-    score: "4.9",
-  },
-  {
-    id: "paris",
-    name: "Paris",
-    country: "France",
-    image: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=600&auto=format&fit=crop&q=60",
-    activitiesCount: 185,
-    costIndex: "$$$$",
-    score: "4.8",
-  },
-  {
-    id: "rome",
-    name: "Rome",
-    country: "Italy",
-    image: "https://images.unsplash.com/photo-1552832230-c0197dd311b5?w=600&auto=format&fit=crop&q=60",
-    activitiesCount: 120,
-    costIndex: "$$$",
-    score: "4.9",
-  },
-  {
-    id: "bangkok",
-    name: "Bangkok",
-    country: "Thailand",
-    image: "https://images.unsplash.com/photo-1508009603885-50cf7c579365?w=600&auto=format&fit=crop&q=60",
-    activitiesCount: 98,
-    costIndex: "$$",
-    score: "4.7",
-  },
-]
+function CostIndexDisplay({ costIndex }: { costIndex: number }) {
+  const signs = ["$", "$$", "$$$", "$$$$", "$$$$$"];
+  const label = signs[Math.min(costIndex - 1, 4)] ?? "$$$";
+  return <span className="font-mono text-xs">{label}</span>;
+}
 
-const TOP_ACTIVITIES = [
-  {
-    id: "shibuya-sky",
-    title: "Shibuya Sky Observation Deck",
-    city: "Tokyo, Japan",
-    category: "Sightseeing",
-    rating: "4.9",
-    price: "$22",
-  },
-  {
-    id: "louvre-museum",
-    title: "Louvre Museum Masterpieces Tour",
-    city: "Paris, France",
-    category: "Culture & Art",
-    rating: "4.9",
-    price: "$35",
-  },
-  {
-    id: "colosseum-arena",
-    title: "Colosseum Gladiator Arena & Forum",
-    city: "Rome, Italy",
-    category: "History",
-    rating: "4.95",
-    price: "$40",
-  },
-]
+function CityCard({ city, savedCityIds }: { city: City; savedCityIds: Set<string> }) {
+  const toggleSave = useToggleSaveDestination();
+  const isSaved = savedCityIds.has(city.id);
 
-export default function DiscoverOverviewPage() {
   return (
-    <div className="flex flex-1 flex-col gap-8 p-4 md:p-6 lg:p-8 max-w-6xl mx-auto w-full">
-      <div className="flex flex-col gap-3">
-        <Badge variant="secondary" className="w-fit gap-1 text-xs">
-          <CompassIcon className="size-3 text-primary" />
-          Global Travel Catalog
-        </Badge>
-        <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
-          Discover Destinations & Experiences
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Browse world-class destinations, verified activities, and curated travel sights to add directly to your itineraries.
-        </p>
+    <Card className="overflow-hidden group hover:shadow-lg transition-all duration-300 border-border/70">
+      <Link href={`/discover/cities/${city.id}`} className="block">
+        <div className="relative h-48 overflow-hidden">
+          {city.imageUrl ? (
+            <div
+              className="absolute inset-0 bg-cover bg-center group-hover:scale-105 transition-transform duration-500"
+              style={{ backgroundImage: `url(${city.imageUrl})` }}
+            />
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/30 via-primary/10 to-secondary/30 flex items-center justify-center">
+              <MapPinIcon className="size-12 text-primary/30" />
+            </div>
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+          <div className="absolute bottom-3 left-3 right-3">
+            <h3 className="text-white font-bold text-lg leading-tight">{city.name}</h3>
+            <p className="text-white/80 text-xs">
+              {city.country?.name} · {city.country?.region}
+            </p>
+          </div>
+        </div>
+      </Link>
+
+      <CardContent className="p-3 flex items-center justify-between">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <CostIndexDisplay costIndex={city.costIndex} />
+          {city.popularityScore && (
+            <>
+              <span>·</span>
+              <span className="flex items-center gap-0.5">
+                <StarIcon className="size-3 fill-amber-400 text-amber-400" />
+                {Number(city.popularityScore).toFixed(1)}
+              </span>
+            </>
+          )}
+        </div>
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          onClick={() => toggleSave.mutate(city.id)}
+          disabled={toggleSave.isPending}
+          className={isSaved ? "text-primary" : "text-muted-foreground"}
+        >
+          <BookmarkIcon className={`size-3.5 ${isSaved ? "fill-primary" : ""}`} />
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ActivityCard({ activity }: { activity: Activity }) {
+  return (
+    <Card className="overflow-hidden group hover:shadow-md transition-all duration-200 border-border/70">
+      <div className="relative h-32 overflow-hidden">
+        {activity.imageUrl ? (
+          <div
+            className="absolute inset-0 bg-cover bg-center group-hover:scale-105 transition-transform duration-500"
+            style={{ backgroundImage: `url(${activity.imageUrl})` }}
+          />
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
+            <SparklesIcon className="size-8 text-primary/30" />
+          </div>
+        )}
+        <div className="absolute top-2 right-2">
+          <Badge className="text-[10px] py-0 px-1.5 bg-black/60 text-white border-0">
+            {activity.category?.name}
+          </Badge>
+        </div>
       </div>
 
-      {/* Cities Section */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Building2Icon className="size-5 text-primary" />
-            <h2 className="text-lg font-bold tracking-tight">Popular Destination Cities</h2>
-          </div>
-          <Button variant="ghost" size="sm" render={<Link href="/discover/cities" />} className="text-xs gap-1">
-            <span>View All Cities</span>
-            <ArrowRightIcon className="size-3.5" />
-          </Button>
+      <CardContent className="p-3 space-y-1.5">
+        <p className="text-sm font-semibold line-clamp-1">{activity.name}</p>
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span className="flex items-center gap-1">
+            <MapPinIcon className="size-3" />
+            {activity.city?.name}
+          </span>
+          {activity.rating && (
+            <span className="flex items-center gap-0.5">
+              <StarIcon className="size-3 fill-amber-400 text-amber-400" />
+              {Number(activity.rating).toFixed(1)}
+            </span>
+          )}
+        </div>
+        {Number(activity.estimatedCost) > 0 && (
+          <p className="text-xs font-semibold text-emerald-600">
+            {activity.currency} {Number(activity.estimatedCost).toFixed(0)}
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function DiscoverPage() {
+  const [search, setSearch] = React.useState("");
+  const [debouncedSearch, setDebouncedSearch] = React.useState("");
+
+  React.useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 350);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const { data: popularCities, isLoading: citiesLoading } = useQuery<City[]>({
+    queryKey: catalogKeys.popularCities(),
+    queryFn: () => apiClient.get("/api/cities", { popular: "true", limit: "8" }),
+  });
+
+  const { data: topActivities, isLoading: activitiesLoading } = useQuery<{
+    items: Activity[];
+    total: number;
+  }>({
+    queryKey: catalogKeys.activityList({ sortBy: "popularity", limit: 6 }),
+    queryFn: () => apiClient.get("/api/activities", { sortBy: "popularity", limit: "6" }),
+  });
+
+  const { data: searchResults, isLoading: searchLoading } = useQuery<{
+    items: City[];
+    total: number;
+  }>({
+    queryKey: catalogKeys.cityList({ search: debouncedSearch }),
+    queryFn: () => apiClient.get("/api/cities", { search: debouncedSearch, limit: "12" }),
+    enabled: debouncedSearch.length >= 2,
+  });
+
+  const { data: savedData } = useSavedDestinations();
+  const savedCityIds = new Set((savedData ?? []).map((s) => s.cityId));
+
+  const showSearch = debouncedSearch.length >= 2;
+
+  return (
+    <div className="flex flex-1 flex-col gap-8 p-4 lg:p-6">
+      {/* Header */}
+      <div className="flex flex-col gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+            <CompassIcon className="size-6 text-primary" />
+            Discover
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Explore popular destinations and curated activities for your next adventure.
+          </p>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {POPULAR_CITIES.map((city) => (
-            <Card key={city.id} className="group overflow-hidden flex flex-col hover:shadow-md transition-shadow">
-              <div className="relative aspect-[4/3] w-full overflow-hidden bg-muted">
-                <img
-                  src={city.image}
-                  alt={city.name}
-                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                />
-                <div className="absolute top-2 right-2 rounded-full bg-background/90 backdrop-blur-sm px-2 py-0.5 text-[11px] font-semibold flex items-center gap-1 shadow-sm">
-                  <StarIcon className="size-3 fill-yellow-400 text-yellow-400" />
-                  <span>{city.score}</span>
-                </div>
-              </div>
-              <CardHeader className="p-3 pb-1">
-                <CardTitle className="text-base font-semibold group-hover:text-primary transition-colors">
-                  {city.name}
-                </CardTitle>
-                <CardDescription className="text-xs">{city.country}</CardDescription>
-              </CardHeader>
-              <CardContent className="p-3 pt-0 flex-1 flex items-center justify-between text-xs text-muted-foreground">
-                <span>{city.activitiesCount} activities</span>
-                <span className="font-mono font-medium">{city.costIndex}</span>
-              </CardContent>
-              <CardFooter className="p-3 pt-0">
-                <Button size="sm" variant="outline" render={<Link href={`/discover/cities/${city.id}`} />} className="w-full text-xs">
-                  Explore City
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
+        <div className="relative max-w-xl">
+          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <Input
+            placeholder="Search cities, countries, or regions..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 h-10"
+          />
         </div>
       </div>
 
-      {/* Activities Section */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <SparklesIcon className="size-5 text-primary" />
-            <h2 className="text-lg font-bold tracking-tight">Top Rated Activities & Tours</h2>
+      {/* Search results */}
+      {showSearch && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-semibold">
+              Search Results{" "}
+              {searchResults && (
+                <span className="text-muted-foreground font-normal text-sm">
+                  ({searchResults.total} cities found)
+                </span>
+              )}
+            </h2>
+            <Button variant="ghost" size="sm" asChild className="text-xs gap-1 h-7">
+              <Link href="/discover/cities">
+                View all cities <ArrowRightIcon className="size-3" />
+              </Link>
+            </Button>
           </div>
-          <Button variant="ghost" size="sm" render={<Link href="/discover/activities" />} className="text-xs gap-1">
-            <span>View All Activities</span>
-            <ArrowRightIcon className="size-3.5" />
-          </Button>
+
+          {searchLoading ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <Skeleton key={i} className="h-48 w-full rounded-xl" />
+              ))}
+            </div>
+          ) : (searchResults?.items ?? []).length === 0 ? (
+            <p className="text-sm text-muted-foreground py-8 text-center">
+              No cities found for &quot;{debouncedSearch}&quot;.
+            </p>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              {(searchResults?.items ?? []).map((city) => (
+                <CityCard key={city.id} city={city} savedCityIds={savedCityIds} />
+              ))}
+            </div>
+          )}
         </div>
+      )}
 
-        <div className="grid gap-4 md:grid-cols-3">
-          {TOP_ACTIVITIES.map((act) => (
-            <Card key={act.id} className="p-4 hover:border-primary/60 transition-colors flex flex-col justify-between space-y-3">
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <Badge variant="outline" className="text-[10px]">{act.category}</Badge>
-                  <span className="text-xs font-semibold text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded">
-                    {act.price}
-                  </span>
-                </div>
-                <h3 className="font-semibold text-sm text-foreground">{act.title}</h3>
-                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                  <MapPinIcon className="size-3" />
-                  {act.city}
-                </p>
-              </div>
-
-              <Button size="sm" render={<Link href={`/discover/activities/${act.id}`} />} className="w-full text-xs">
-                View Details
+      {/* Popular destinations */}
+      {!showSearch && (
+        <>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-semibold flex items-center gap-2">
+                <MapPinIcon className="size-4 text-primary" />
+                Popular Destinations
+              </h2>
+              <Button variant="ghost" size="sm" asChild className="text-xs gap-1 h-7">
+                <Link href="/discover/cities">
+                  All cities <ArrowRightIcon className="size-3" />
+                </Link>
               </Button>
-            </Card>
-          ))}
-        </div>
-      </div>
+            </div>
+
+            {citiesLoading ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <Skeleton key={i} className="h-48 w-full rounded-xl" />
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                {(popularCities ?? []).map((city) => (
+                  <CityCard key={city.id} city={city} savedCityIds={savedCityIds} />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Top Activities */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-semibold flex items-center gap-2">
+                <SparklesIcon className="size-4 text-primary" />
+                Top-Rated Activities
+              </h2>
+              <Button variant="ghost" size="sm" asChild className="text-xs gap-1 h-7">
+                <Link href="/discover/activities">
+                  All activities <ArrowRightIcon className="size-3" />
+                </Link>
+              </Button>
+            </div>
+
+            {activitiesLoading ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <Skeleton key={i} className="h-44 w-full rounded-xl" />
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {(topActivities?.items ?? []).map((activity) => (
+                  <ActivityCard key={activity.id} activity={activity} />
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
-  )
+  );
 }

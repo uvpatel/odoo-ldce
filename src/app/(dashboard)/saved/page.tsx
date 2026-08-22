@@ -1,92 +1,123 @@
-import * as React from "react"
-import Link from "next/link"
-import { BookmarkIcon, MapPinIcon, StarIcon, ArrowRightIcon, PlusIcon, HeartIcon } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+"use client";
 
-const SAVED_ITEMS = [
-  {
-    id: "saved-tokyo",
-    type: "City",
-    title: "Tokyo, Japan",
-    subtitle: "Saved for Spring 2026 trip",
-    image: "https://images.unsplash.com/photo-1503899036084-c55cdd92da26?w=600&auto=format&fit=crop&q=60",
-    url: "/discover/cities/tokyo",
-    rating: "4.9",
-  },
-  {
-    id: "saved-amalfi",
-    type: "Itinerary",
-    title: "Amalfi Coast & Capri Summer Escape",
-    subtitle: "7-day coastal drive itinerary",
-    image: "https://images.unsplash.com/photo-1533105079780-92b9be482077?w=600&auto=format&fit=crop&q=60",
-    url: "/shared/sample-amalfi-2026",
-    rating: "4.95",
-  },
-  {
-    id: "saved-colosseum",
-    type: "Activity",
-    title: "Colosseum Arena & Ancient Forum",
-    subtitle: "Rome, Italy",
-    image: "https://images.unsplash.com/photo-1552832230-c0197dd311b5?w=600&auto=format&fit=crop&q=60",
-    url: "/discover/activities/colosseum-arena",
-    rating: "4.95",
-  },
-]
+import * as React from "react";
+import Link from "next/link";
+import { BookmarkIcon, MapPinIcon, StarIcon, ArrowRightIcon, PlusIcon, HeartIcon, Trash2Icon, Loader2Icon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useSavedDestinations, useRemoveSavedDestination } from "@/features/discover/hooks/use-discover";
 
 export default function SavedDestinationsPage() {
+  const { data: savedItems, isLoading } = useSavedDestinations();
+  const removeSaved = useRemoveSavedDestination();
+
   return (
     <div className="flex flex-1 flex-col gap-6 p-4 md:p-6 lg:p-8 max-w-6xl mx-auto w-full">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Saved Places & Wishlist</h1>
-          <p className="text-sm text-muted-foreground">
-            Destinations, activities, and community itineraries you've bookmarked for future travels.
+          <h1 className="text-2xl font-bold tracking-tight md:text-3xl flex items-center gap-2">
+            <BookmarkIcon className="size-7 text-primary fill-primary" />
+            Saved Wishlist
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Destinations and cities you&apos;ve bookmarked for your future travel plans.
           </p>
         </div>
-        <Button render={<Link href="/discover" />} variant="outline" className="gap-1.5 text-xs">
-          <PlusIcon className="size-3.5" />
-          Discover More Places
+        <Button asChild variant="outline" className="gap-1.5 text-xs">
+          <Link href="/discover/cities">
+            <PlusIcon className="size-3.5" />
+            Discover More Places
+          </Link>
         </Button>
       </div>
 
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {SAVED_ITEMS.map((item) => (
-          <Card key={item.id} className="group overflow-hidden flex flex-col hover:shadow-md transition-shadow">
-            <div className="relative aspect-video w-full overflow-hidden bg-muted">
-              <img
-                src={item.image}
-                alt={item.title}
-                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-              />
-              <div className="absolute top-3 left-3">
-                <Badge variant="secondary" className="text-[10px] bg-background/90 backdrop-blur-sm shadow-sm">
-                  {item.type}
-                </Badge>
+      {isLoading ? (
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-80 w-full rounded-xl" />
+          ))}
+        </div>
+      ) : (savedItems ?? []).length === 0 ? (
+        <div className="text-center py-20 border rounded-2xl border-dashed">
+          <BookmarkIcon className="size-12 mx-auto mb-3 text-muted-foreground opacity-30" />
+          <h3 className="text-lg font-semibold">No saved destinations yet</h3>
+          <p className="text-sm text-muted-foreground mt-1 max-w-sm mx-auto">
+            Browse through our global cities and click the bookmark button to save places you want to visit.
+          </p>
+          <Button asChild className="mt-6 gap-2" size="sm">
+            <Link href="/discover/cities">
+              <PlusIcon className="size-4" />
+              Explore Cities
+            </Link>
+          </Button>
+        </div>
+      ) : (
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {(savedItems ?? []).map((item) => (
+            <Card key={item.id} className="group overflow-hidden flex flex-col hover:shadow-lg transition-all duration-300 border-border/70">
+              <div className="relative aspect-video w-full overflow-hidden bg-muted">
+                {item.city.imageUrl ? (
+                  <img
+                    src={item.city.imageUrl}
+                    alt={item.city.name}
+                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
+                ) : (
+                  <div className="h-full w-full bg-gradient-to-br from-primary/20 via-primary/10 to-transparent flex items-center justify-center">
+                    <MapPinIcon className="size-10 text-primary/40" />
+                  </div>
+                )}
+                <div className="absolute top-3 left-3">
+                  <Badge variant="secondary" className="text-[10px] bg-background/90 backdrop-blur-sm shadow-sm">
+                    {item.country?.name}
+                  </Badge>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeSaved.mutate(item.cityId)}
+                  disabled={removeSaved.isPending}
+                  className="absolute top-3 right-3 rounded-full bg-background/90 backdrop-blur-sm p-2 shadow-sm text-destructive hover:bg-destructive hover:text-white transition-colors"
+                  title="Remove from saved"
+                >
+                  <Trash2Icon className="size-3.5" />
+                </button>
               </div>
-              <div className="absolute top-3 right-3 rounded-full bg-background/90 backdrop-blur-sm p-1.5 shadow-sm text-destructive">
-                <HeartIcon className="size-3.5 fill-current" />
-              </div>
-            </div>
 
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base group-hover:text-primary transition-colors">
-                {item.title}
-              </CardTitle>
-              <CardDescription className="text-xs">{item.subtitle}</CardDescription>
-            </CardHeader>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base group-hover:text-primary transition-colors">
+                  <Link href={`/discover/cities/${item.cityId}`}>{item.city.name}</Link>
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  {item.country?.name} {item.country?.region ? `• ${item.country.region}` : ""}
+                </CardDescription>
+              </CardHeader>
 
-            <CardFooter className="border-t pt-3 bg-muted/20 flex items-center justify-between">
-              <span className="text-xs font-semibold text-muted-foreground">★ {item.rating}</span>
-              <Button size="sm" render={<Link href={item.url} />} className="text-xs gap-1">
-                <span>View Details</span>
-                <ArrowRightIcon className="size-3" />
-              </Button>
-            </CardFooter>
-          </Card>
-        ))}
-      </div>
+              <CardContent className="flex-1 pb-4">
+                <p className="text-xs text-muted-foreground line-clamp-2">
+                  {item.city.description || "Saved destination ready for your next trip itinerary."}
+                </p>
+              </CardContent>
+
+              <CardFooter className="border-t pt-3 bg-muted/20 flex items-center justify-between">
+                {item.city.popularityScore && (
+                  <span className="text-xs font-semibold text-amber-500 flex items-center gap-1">
+                    <StarIcon className="size-3.5 fill-current" />
+                    {Number(item.city.popularityScore).toFixed(1)}
+                  </span>
+                )}
+                <Button asChild size="sm" className="text-xs gap-1 ml-auto">
+                  <Link href={`/discover/cities/${item.cityId}`}>
+                    <span>View Guide</span>
+                    <ArrowRightIcon className="size-3" />
+                  </Link>
+                </Button>
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
-  )
+  );
 }

@@ -21,7 +21,10 @@ export async function GET(
     // Fetch activities for this city
     const activitiesResult = await ActivityRepository.findActivities({
       cityId: city.id,
+      page: 1,
       limit: 12,
+      sortBy: "popularity",
+      sortOrder: "desc",
     });
 
     return NextResponse.json({

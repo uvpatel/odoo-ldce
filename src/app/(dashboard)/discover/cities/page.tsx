@@ -1,71 +1,166 @@
-import * as React from "react"
-import Link from "next/link"
-import { Building2Icon, MapPinIcon, StarIcon, SearchIcon, PlusIcon } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
+"use client";
 
-const CITIES_DATA = [
-  { id: "tokyo", name: "Tokyo", country: "Japan", image: "https://images.unsplash.com/photo-1503899036084-c55cdd92da26?w=600&auto=format&fit=crop&q=60", activities: 142, rating: "4.9", cost: "$$$", desc: "Ultramodern neon skyscrapers juxtaposed with historic temples and Michelin-starred dining." },
-  { id: "paris", name: "Paris", country: "France", image: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=600&auto=format&fit=crop&q=60", activities: 185, rating: "4.8", cost: "$$$$", desc: "City of Light featuring world-renowned art museums, haute cuisine, and iconic river walks." },
-  { id: "rome", name: "Rome", country: "Italy", image: "https://images.unsplash.com/photo-1552832230-c0197dd311b5?w=600&auto=format&fit=crop&q=60", activities: 120, rating: "4.9", cost: "$$$", desc: "Ancient Colosseum ruins, Vatican treasures, and charming cobblestone alleys." },
-  { id: "bangkok", name: "Bangkok", country: "Thailand", image: "https://images.unsplash.com/photo-1508009603885-50cf7c579365?w=600&auto=format&fit=crop&q=60", activities: 98, rating: "4.7", cost: "$$", desc: "Vibrant street food, ornate river shrines, and bustling night markets." },
-  { id: "barcelona", name: "Barcelona", country: "Spain", image: "https://images.unsplash.com/photo-1539037116277-4db20889f2d4?w=600&auto=format&fit=crop&q=60", activities: 110, rating: "4.85", cost: "$$$", desc: "Gaudí architecture, sunny Mediterranean beaches, and lively tapas bars." },
-  { id: "new-york", name: "New York", country: "United States", image: "https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?w=600&auto=format&fit=crop&q=60", activities: 210, rating: "4.8", cost: "$$$$", desc: "Broadway shows, iconic skyline viewpoints, Central Park, and global cuisine." },
-]
+import * as React from "react";
+import Link from "next/link";
+import { Building2Icon, MapPinIcon, StarIcon, SearchIcon, BookmarkIcon, ArrowRightIcon, SparklesIcon, FilterIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useCities, useSavedDestinations, useToggleSaveDestination } from "@/features/discover/hooks/use-discover";
+import type { City } from "@/features/discover/api/discover.api";
+
+function CostIndexDisplay({ costIndex }: { costIndex: number }) {
+  const signs = ["$", "$$", "$$$", "$$$$", "$$$$$"];
+  const label = signs[Math.min(costIndex - 1, 4)] ?? "$$$";
+  return <span className="font-mono text-xs font-semibold">{label}</span>;
+}
 
 export default function DiscoverCitiesPage() {
+  const [search, setSearch] = React.useState("");
+  const [debouncedSearch, setDebouncedSearch] = React.useState("");
+  const [sortBy, setSortBy] = React.useState<"popularity" | "name" | "cost">("popularity");
+
+  React.useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const { data, isLoading } = useCities({
+    search: debouncedSearch || undefined,
+    sortBy,
+    limit: 30,
+  });
+
+  const { data: savedData } = useSavedDestinations();
+  const savedCityIds = new Set((savedData ?? []).map((s) => s.cityId));
+  const toggleSave = useToggleSaveDestination();
+
+  const cities = data?.items ?? [];
+
   return (
     <div className="flex flex-1 flex-col gap-6 p-4 md:p-6 lg:p-8 max-w-6xl mx-auto w-full">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Explore Cities</h1>
-          <p className="text-sm text-muted-foreground">
-            Explore curated city guides with local attractions, neighborhoods, and estimated costs.
+          <h1 className="text-2xl font-bold tracking-tight md:text-3xl flex items-center gap-2">
+            <Building2Icon className="size-7 text-primary" />
+            Explore Cities
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Discover global travel destinations with curated insights, cost tiers, and top attractions.
           </p>
         </div>
       </div>
 
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {CITIES_DATA.map((city) => (
-          <Card key={city.id} className="group overflow-hidden flex flex-col hover:shadow-md transition-shadow">
-            <div className="relative aspect-video w-full overflow-hidden bg-muted">
-              <img
-                src={city.image}
-                alt={city.name}
-                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-              />
-              <div className="absolute top-3 right-3 rounded-full bg-background/90 backdrop-blur-sm px-2.5 py-1 text-xs font-semibold flex items-center gap-1 shadow-sm">
-                <StarIcon className="size-3.5 fill-yellow-400 text-yellow-400" />
-                <span>{city.rating}</span>
-              </div>
-            </div>
+      {/* Filter and Search Bar */}
+      <div className="flex flex-col sm:flex-row items-center gap-3">
+        <div className="relative flex-1 w-full">
+          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by city or country name..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 h-10"
+          />
+        </div>
 
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg group-hover:text-primary transition-colors">
-                {city.name}
-              </CardTitle>
-              <CardDescription className="text-xs">
-                {city.country} • {city.activities} activities
-              </CardDescription>
-            </CardHeader>
-
-            <CardContent className="flex-1 pb-4">
-              <p className="text-xs text-muted-foreground line-clamp-2">
-                {city.desc}
-              </p>
-            </CardContent>
-
-            <CardFooter className="border-t pt-3 bg-muted/20 flex items-center justify-between">
-              <span className="text-xs font-mono font-medium text-muted-foreground">{city.cost}</span>
-              <Button size="sm" render={<Link href={`/discover/cities/${city.id}`} />} className="text-xs">
-                View City Guide
-              </Button>
-            </CardFooter>
-          </Card>
-        ))}
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Select value={sortBy} onValueChange={(val) => setSortBy(val as typeof sortBy)}>
+            <SelectTrigger className="w-full sm:w-[180px] h-10">
+              <SelectValue placeholder="Sort by" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="popularity">Most Popular</SelectItem>
+              <SelectItem value="name">City Name (A-Z)</SelectItem>
+              <SelectItem value="cost">Affordability</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
+
+      {isLoading ? (
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-80 w-full rounded-xl" />
+          ))}
+        </div>
+      ) : cities.length === 0 ? (
+        <div className="text-center py-16 border rounded-2xl border-dashed">
+          <MapPinIcon className="size-12 mx-auto mb-3 text-muted-foreground opacity-30" />
+          <h3 className="text-lg font-semibold">No cities found</h3>
+          <p className="text-sm text-muted-foreground mt-1">Try adjusting your search criteria</p>
+        </div>
+      ) : (
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {cities.map((city) => {
+            const isSaved = savedCityIds.has(city.id);
+            return (
+              <Card key={city.id} className="group overflow-hidden flex flex-col hover:shadow-lg transition-all duration-300 border-border/70">
+                <div className="relative aspect-video w-full overflow-hidden bg-muted">
+                  {city.imageUrl ? (
+                    <img
+                      src={city.imageUrl}
+                      alt={city.name}
+                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className="h-full w-full bg-gradient-to-br from-primary/20 via-primary/10 to-transparent flex items-center justify-center">
+                      <MapPinIcon className="size-10 text-primary/40" />
+                    </div>
+                  )}
+                  {city.popularityScore && (
+                    <div className="absolute top-3 right-3 rounded-full bg-background/90 backdrop-blur-sm px-2.5 py-1 text-xs font-semibold flex items-center gap-1 shadow-sm">
+                      <StarIcon className="size-3.5 fill-yellow-400 text-yellow-400" />
+                      <span>{Number(city.popularityScore).toFixed(1)}</span>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      toggleSave.mutate(city.id);
+                    }}
+                    className={`absolute top-3 left-3 p-2 rounded-full backdrop-blur-sm transition-colors ${
+                      isSaved
+                        ? "bg-primary text-primary-foreground shadow-md"
+                        : "bg-background/80 text-foreground hover:bg-background"
+                    }`}
+                  >
+                    <BookmarkIcon className={`size-3.5 ${isSaved ? "fill-current" : ""}`} />
+                  </button>
+                </div>
+
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg group-hover:text-primary transition-colors">
+                    <Link href={`/discover/cities/${city.id}`}>{city.name}</Link>
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    {city.country?.name} {city.country?.region ? `• ${city.country.region}` : ""}
+                  </CardDescription>
+                </CardHeader>
+
+                <CardContent className="flex-1 pb-4">
+                  <p className="text-xs text-muted-foreground line-clamp-2">
+                    {city.description || "Discover landmarks, cultural treasures, and local activities."}
+                  </p>
+                </CardContent>
+
+                <CardFooter className="border-t pt-3 bg-muted/20 flex items-center justify-between">
+                  <CostIndexDisplay costIndex={city.costIndex} />
+                  <Button asChild size="sm" className="text-xs gap-1">
+                    <Link href={`/discover/cities/${city.id}`}>
+                      <span>View City Guide</span>
+                      <ArrowRightIcon className="size-3" />
+                    </Link>
+                  </Button>
+                </CardFooter>
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
-  )
+  );
 }

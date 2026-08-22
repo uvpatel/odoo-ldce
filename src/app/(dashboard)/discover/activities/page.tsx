@@ -1,138 +1,170 @@
-import * as React from "react"
-import Link from "next/link"
-import { SparklesIcon, MapPinIcon, StarIcon, SearchIcon, PlusIcon, FilterIcon, ClockIcon } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+"use client";
 
-const ACTIVITIES_LIST = [
-  {
-    id: "shibuya-sky",
-    title: "Shibuya Sky 360 Observation Deck",
-    city: "Tokyo, Japan",
-    category: "Sightseeing",
-    rating: "4.9",
-    price: "$22",
-    duration: "1.5 hours",
-    image: "https://images.unsplash.com/photo-1503899036084-c55cdd92da26?w=600&auto=format&fit=crop&q=60",
-    description: "Panoramic 360-degree open-air rooftop observation deck looking over Tokyo Scramble and Mount Fuji.",
-  },
-  {
-    id: "louvre-tour",
-    title: "Louvre Museum Highlights & Mona Lisa Tour",
-    city: "Paris, France",
-    category: "Culture & Art",
-    rating: "4.85",
-    price: "$38",
-    duration: "2.5 hours",
-    image: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=600&auto=format&fit=crop&q=60",
-    description: "Skip the line guided walking tour covering the world's most celebrated art collections.",
-  },
-  {
-    id: "colosseum-arena",
-    title: "Colosseum Arena & Ancient Forum Experience",
-    city: "Rome, Italy",
-    category: "History",
-    rating: "4.95",
-    price: "$45",
-    duration: "3 hours",
-    image: "https://images.unsplash.com/photo-1552832230-c0197dd311b5?w=600&auto=format&fit=crop&q=60",
-    description: "Step directly onto the gladiator floor and discover Roman forum ruins with expert historians.",
-  },
-  {
-    id: "grand-palace-bangkok",
-    title: "Grand Palace & Emerald Buddha Temple",
-    city: "Bangkok, Thailand",
-    category: "Culture",
-    rating: "4.75",
-    price: "$18",
-    duration: "2 hours",
-    image: "https://images.unsplash.com/photo-1508009603885-50cf7c579365?w=600&auto=format&fit=crop&q=60",
-    description: "Marvel at the intricate gilded spires, sacred murals, and iconic Thai architecture.",
-  },
-  {
-    id: "sagrada-familia-tower",
-    title: "Sagrada Família Basilica & Towers Access",
-    city: "Barcelona, Spain",
-    category: "Architecture",
-    rating: "4.9",
-    price: "$34",
-    duration: "2 hours",
-    image: "https://images.unsplash.com/photo-1539037116277-4db20889f2d4?w=600&auto=format&fit=crop&q=60",
-    description: "Antoni Gaudí's unfinished masterpiece with soaring stained-glass light and elevator tower access.",
-  },
-  {
-    id: "central-park-bike",
-    title: "Central Park Scenic Guided Bike Tour",
-    city: "New York, USA",
-    category: "Outdoor",
-    rating: "4.8",
-    price: "$28",
-    duration: "2 hours",
-    image: "https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?w=600&auto=format&fit=crop&q=60",
-    description: "Cruise through scenic bridges, Strawberry Fields, Bethesda Fountain, and lush park trails.",
-  },
-]
+import * as React from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { SparklesIcon, MapPinIcon, StarIcon, SearchIcon, ClockIcon, DollarSignIcon, FilterIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useActivities, useActivityCategories } from "@/features/discover/hooks/use-discover";
 
 export default function DiscoverActivitiesPage() {
+  const searchParams = useSearchParams();
+  const initialCityId = searchParams.get("cityId") || undefined;
+
+  const [search, setSearch] = React.useState("");
+  const [debouncedSearch, setDebouncedSearch] = React.useState("");
+  const [categoryId, setCategoryId] = React.useState<string>("all");
+  const [sortBy, setSortBy] = React.useState<"popularity" | "rating" | "cost" | "duration">("popularity");
+
+  React.useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const { data: categories } = useActivityCategories();
+
+  const { data, isLoading } = useActivities({
+    search: debouncedSearch || undefined,
+    categoryId: categoryId === "all" ? undefined : categoryId,
+    cityId: initialCityId,
+    sortBy,
+    limit: 30,
+  });
+
+  const activities = data?.items ?? [];
+
   return (
     <div className="flex flex-1 flex-col gap-6 p-4 md:p-6 lg:p-8 max-w-6xl mx-auto w-full">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Activities & Sights</h1>
-          <p className="text-sm text-muted-foreground">
-            Search top attractions, experiences, museum tickets, and outdoor excursions worldwide.
+          <h1 className="text-2xl font-bold tracking-tight md:text-3xl flex items-center gap-2">
+            <SparklesIcon className="size-7 text-primary" />
+            Activities & Experiences
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Search top attractions, sightseeing tours, museum tickets, and local culinary experiences worldwide.
           </p>
         </div>
       </div>
 
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {ACTIVITIES_LIST.map((act) => (
-          <Card key={act.id} className="group overflow-hidden flex flex-col hover:shadow-md transition-shadow">
-            <div className="relative aspect-video w-full overflow-hidden bg-muted">
-              <img
-                src={act.image}
-                alt={act.title}
-                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-              />
-              <div className="absolute top-3 right-3 rounded-full bg-background/90 backdrop-blur-sm px-2.5 py-1 text-xs font-semibold flex items-center gap-1 shadow-sm">
-                <StarIcon className="size-3.5 fill-yellow-400 text-yellow-400" />
-                <span>{act.rating}</span>
-              </div>
-              <div className="absolute bottom-3 left-3 rounded-md bg-black/60 backdrop-blur-sm px-2 py-0.5 text-xs text-white flex items-center gap-1">
-                <MapPinIcon className="size-3 text-primary" />
-                <span>{act.city}</span>
-              </div>
-            </div>
+      {/* Filter and Search Bar */}
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="relative w-full">
+          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <Input
+            placeholder="Search activities or sights..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 h-10"
+          />
+        </div>
 
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between gap-2 mb-1">
-                <Badge variant="secondary" className="text-[10px]">{act.category}</Badge>
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                  <ClockIcon className="size-3" />
-                  {act.duration}
-                </span>
-              </div>
-              <CardTitle className="text-base line-clamp-1 group-hover:text-primary transition-colors">
-                {act.title}
-              </CardTitle>
-            </CardHeader>
+        <Select value={categoryId} onValueChange={(v) => setCategoryId(v ?? "all")}>
+          <SelectTrigger className="w-full h-10">
+            <SelectValue placeholder="All Categories" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Categories</SelectItem>
+            {(categories ?? []).map((cat) => (
+              <SelectItem key={cat.id} value={cat.id}>
+                {cat.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-            <CardContent className="flex-1 pb-4">
-              <p className="text-xs text-muted-foreground line-clamp-2">
-                {act.description}
-              </p>
-            </CardContent>
-
-            <CardFooter className="border-t pt-3 bg-muted/20 flex items-center justify-between">
-              <span className="text-sm font-bold text-emerald-600">{act.price}</span>
-              <Button size="sm" render={<Link href={`/discover/activities/${act.id}`} />} className="text-xs">
-                View Activity
-              </Button>
-            </CardFooter>
-          </Card>
-        ))}
+        <Select value={sortBy} onValueChange={(val) => setSortBy(val as typeof sortBy)}>
+          <SelectTrigger className="w-full h-10">
+            <SelectValue placeholder="Sort by" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="popularity">Most Popular</SelectItem>
+            <SelectItem value="rating">Highest Rated</SelectItem>
+            <SelectItem value="cost">Lowest Cost</SelectItem>
+            <SelectItem value="duration">Shortest Duration</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
+
+      {isLoading ? (
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-80 w-full rounded-xl" />
+          ))}
+        </div>
+      ) : activities.length === 0 ? (
+        <div className="text-center py-16 border rounded-2xl border-dashed">
+          <SparklesIcon className="size-12 mx-auto mb-3 text-muted-foreground opacity-30" />
+          <h3 className="text-lg font-semibold">No activities found</h3>
+          <p className="text-sm text-muted-foreground mt-1">Try adjusting your category or search keyword</p>
+        </div>
+      ) : (
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {activities.map((act) => (
+            <Card key={act.id} className="group overflow-hidden flex flex-col hover:shadow-lg transition-all duration-300 border-border/70">
+              <div className="relative aspect-video w-full overflow-hidden bg-muted">
+                {act.imageUrl ? (
+                  <img
+                    src={act.imageUrl}
+                    alt={act.name}
+                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
+                ) : (
+                  <div className="h-full w-full bg-gradient-to-br from-primary/20 via-primary/10 to-transparent flex items-center justify-center">
+                    <SparklesIcon className="size-10 text-primary/40" />
+                  </div>
+                )}
+                {act.category?.name && (
+                  <div className="absolute top-3 left-3">
+                    <Badge variant="secondary" className="text-[10px] bg-background/90 backdrop-blur-sm shadow-sm">
+                      {act.category.name}
+                    </Badge>
+                  </div>
+                )}
+                {act.rating && (
+                  <div className="absolute top-3 right-3 rounded-full bg-background/90 backdrop-blur-sm px-2.5 py-1 text-xs font-semibold flex items-center gap-1 shadow-sm">
+                    <StarIcon className="size-3.5 fill-yellow-400 text-yellow-400" />
+                    <span>{Number(act.rating).toFixed(1)}</span>
+                  </div>
+                )}
+              </div>
+
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base group-hover:text-primary transition-colors line-clamp-1">
+                  {act.name}
+                </CardTitle>
+                <CardDescription className="text-xs flex items-center gap-1">
+                  <MapPinIcon className="size-3" />
+                  {act.city?.name}
+                </CardDescription>
+              </CardHeader>
+
+              <CardContent className="flex-1 pb-4">
+                <p className="text-xs text-muted-foreground line-clamp-2">
+                  {act.description || "Immerse in this memorable travel attraction."}
+                </p>
+              </CardContent>
+
+              <CardFooter className="border-t pt-3 bg-muted/20 flex items-center justify-between text-xs">
+                <span className="font-semibold text-emerald-600 font-mono">
+                  {act.currency} {Number(act.estimatedCost).toFixed(0)}
+                </span>
+                {act.durationMinutes && (
+                  <span className="text-muted-foreground flex items-center gap-1">
+                    <ClockIcon className="size-3" />
+                    {act.durationMinutes} mins
+                  </span>
+                )}
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
-  )
+  );
 }

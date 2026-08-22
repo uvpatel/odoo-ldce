@@ -1,149 +1,481 @@
-import * as React from "react"
-import Link from "next/link"
+"use client";
+
+import * as React from "react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { tripKeys, catalogKeys } from "@/lib/query-keys";
+import { tripsApi, type TripDetails } from "@/features/trips/api/trips.api";
+import { apiClient } from "@/lib/api-client";
 import {
   CalendarIcon,
   MapPinIcon,
   UsersIcon,
-  DollarSignIcon,
+  WalletCardsIcon,
   RouteIcon,
   SparklesIcon,
   ArrowRightIcon,
-  CheckCircleIcon,
-} from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+  ClockIcon,
+  PlaneIcon,
+  AlertCircleIcon,
+  PlusIcon,
+  Loader2Icon,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
+import type { City } from "@/features/discover/api/discover.api";
 
-export default async function TripOverviewPage({
-  params,
-}: {
-  params: Promise<{ tripId: string }>
-}) {
-  const { tripId } = await params
+function formatDate(date: string | null) {
+  if (!date) return "—";
+  return new Date(date).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function getTripDuration(start: string | null, end: string | null) {
+  if (!start || !end) return null;
+  const diff = Math.ceil(
+    (new Date(end).getTime() - new Date(start).getTime()) / (1000 * 60 * 60 * 24)
+  );
+  return diff + 1; // inclusive
+}
+
+function AddStopDialog({ tripId }: { tripId: string }) {
+  const [open, setOpen] = React.useState(false);
+  const [selectedCityId, setSelectedCityId] = React.useState("");
+  const [arrivalDate, setArrivalDate] = React.useState("");
+  const [departureDate, setDepartureDate] = React.useState("");
+  const queryClient = useQueryClient();
+
+  const { data: citiesData } = useQuery<{ items: City[] }>({
+    queryKey: catalogKeys.cityList(),
+    queryFn: () => apiClient.get("/api/cities", { limit: 50 }),
+  });
+
+  const addStopMutation = useMutation({
+    mutationFn: () =>
+      apiClient.post(`/api/trips/${tripId}/stops`, {
+        cityId: selectedCityId,
+        arrivalDate: arrivalDate || null,
+        departureDate: departureDate || null,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: tripKeys.detail(tripId) });
+      toast.success("Destination stop added!");
+      setOpen(false);
+      setSelectedCityId("");
+      setArrivalDate("");
+      setDepartureDate("");
+    },
+    onError: (e: Error) => toast.error(e.message || "Failed to add stop"),
+  });
+
+  const handleAddStop = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedCityId) {
+      toast.error("Please select a city");
+      return;
+    }
+    addStopMutation.mutate();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="outline" className="text-xs gap-1.5 h-8">
+          <PlusIcon className="size-3.5" />
+          <span>Add Destination</span>
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Add Destination Stop</DialogTitle>
+          <DialogDescription className="text-xs">
+            Add a city to your trip itinerary and schedule your arrival.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleAddStop} className="space-y-4 mt-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="citySelect">Select City *</Label>
+            <Select value={selectedCityId} onValueChange={(v) => setSelectedCityId(v ?? "")}>
+              <SelectTrigger id="citySelect">
+                <SelectValue placeholder="Choose a destination city..." />
+              </SelectTrigger>
+              <SelectContent>
+                {(citiesData?.items ?? []).map((city) => (
+                  <SelectItem key={city.id} value={city.id}>
+                    {city.name}, {city.country?.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="arrDate">Arrival Date</Label>
+              <Input
+                id="arrDate"
+                type="date"
+                value={arrivalDate}
+                onChange={(e) => setArrivalDate(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="depDate">Departure Date</Label>
+              <Input
+                id="depDate"
+                type="date"
+                value={departureDate}
+                onChange={(e) => setDepartureDate(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" size="sm" disabled={addStopMutation.isPending} className="gap-1">
+              {addStopMutation.isPending ? (
+                <Loader2Icon className="size-3.5 animate-spin" />
+              ) : (
+                <PlusIcon className="size-3.5" />
+              )}
+              Add Stop
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export default function TripOverviewPage() {
+  const { tripId } = useParams<{ tripId: string }>();
+
+  const { data, isLoading, isError } = useQuery<TripDetails>({
+    queryKey: tripKeys.detail(tripId),
+    queryFn: () => tripsApi.detail(tripId),
+    enabled: !!tripId,
+  });
+
+  const trip = data?.trip;
+  const members = data?.members ?? [];
+  const stops = data?.stops ?? [];
+  const days = data?.days ?? [];
+  const budget = data?.budget;
+
+  const duration = getTripDuration(trip?.startDate ?? null, trip?.endDate ?? null);
+  const budgetPercent = budget ? Math.min(100, Math.round(budget.percentageUsed)) : 0;
+
+  // Next 4 upcoming itinerary items
+  const upcomingItems = days
+    .flatMap((d) =>
+      (d.items ?? []).map((item) => ({
+        ...item,
+        dayNumber: d.dayNumber,
+        date: d.date,
+      }))
+    )
+    .sort((a, b) => {
+      if (a.date !== b.date) return (a.date ?? "").localeCompare(b.date ?? "");
+      return (a.startTime ?? "").localeCompare(b.startTime ?? "");
+    })
+    .slice(0, 4);
+
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
+        <AlertCircleIcon className="size-12 text-muted-foreground opacity-50" />
+        <div>
+          <p className="font-semibold">Failed to load trip</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            The trip may not exist or you may not have access.
+          </p>
+        </div>
+        <Button asChild variant="outline" size="sm">
+          <Link href="/trips">Back to My Trips</Link>
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
+      {/* Stats row */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Duration */}
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription className="text-xs">Trip Duration</CardDescription>
-            <CardTitle className="text-2xl flex items-center gap-2">
-              <CalendarIcon className="size-5 text-primary" />
-              10 Days
-            </CardTitle>
+            <CardDescription className="text-xs flex items-center gap-1.5">
+              <CalendarIcon className="size-3.5 text-primary" />
+              Trip Duration
+            </CardDescription>
+            {isLoading ? (
+              <Skeleton className="h-8 w-24" />
+            ) : (
+              <CardTitle className="text-2xl">
+                {duration ? `${duration} Days` : "Flexible"}
+              </CardTitle>
+            )}
           </CardHeader>
           <CardContent className="text-xs text-muted-foreground">
-            Apr 10 – Apr 20, 2026
+            {isLoading ? (
+              <Skeleton className="h-4 w-40" />
+            ) : (
+              `${formatDate(trip?.startDate ?? null)} – ${formatDate(trip?.endDate ?? null)}`
+            )}
           </CardContent>
         </Card>
 
+        {/* Stops */}
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription className="text-xs">Total Stops</CardDescription>
-            <CardTitle className="text-2xl flex items-center gap-2">
-              <MapPinIcon className="size-5 text-primary" />
-              4 Cities
-            </CardTitle>
+            <CardDescription className="text-xs flex items-center gap-1.5">
+              <MapPinIcon className="size-3.5 text-primary" />
+              Total Stops
+            </CardDescription>
+            {isLoading ? (
+              <Skeleton className="h-8 w-24" />
+            ) : (
+              <CardTitle className="text-2xl">{stops.length} Cities</CardTitle>
+            )}
           </CardHeader>
-          <CardContent className="text-xs text-muted-foreground">
-            Tokyo, Hakone, Kyoto, Osaka
+          <CardContent className="text-xs text-muted-foreground line-clamp-1">
+            {isLoading ? (
+              <Skeleton className="h-4 w-48" />
+            ) : stops.length > 0 ? (
+              stops.map((s) => s.city?.name).join(", ")
+            ) : (
+              "No stops added yet"
+            )}
           </CardContent>
         </Card>
 
+        {/* Budget */}
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription className="text-xs">Budget Tracked</CardDescription>
-            <CardTitle className="text-2xl flex items-center gap-2">
-              <DollarSignIcon className="size-5 text-emerald-600" />
-              $2,140 / $3,200
-            </CardTitle>
+            <CardDescription className="text-xs flex items-center gap-1.5">
+              <WalletCardsIcon className="size-3.5 text-emerald-600" />
+              Budget Tracked
+            </CardDescription>
+            {isLoading ? (
+              <Skeleton className="h-8 w-32" />
+            ) : (
+              <CardTitle className="text-2xl">
+                {budget
+                  ? `${trip?.currency ?? "USD"} ${budget.totalActual.toLocaleString()} / ${Number(budget.budget?.totalBudget ?? trip?.budgetLimit ?? 0).toLocaleString()}`
+                  : trip?.budgetLimit
+                  ? `${trip.currency} 0 / ${Number(trip.budgetLimit).toLocaleString()}`
+                  : "No budget set"}
+              </CardTitle>
+            )}
           </CardHeader>
           <CardContent className="text-xs text-muted-foreground">
-            67% of total budget spent
+            {isLoading ? (
+              <Skeleton className="h-4 w-36" />
+            ) : budget ? (
+              <>
+                <Progress value={budgetPercent} className="h-1 mb-1" />
+                {budgetPercent}% of total budget
+              </>
+            ) : (
+              "Set a budget to track spending"
+            )}
           </CardContent>
         </Card>
 
+        {/* Members */}
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription className="text-xs">Travel Party</CardDescription>
-            <CardTitle className="text-2xl flex items-center gap-2">
-              <UsersIcon className="size-5 text-primary" />
-              3 Travelers
-            </CardTitle>
+            <CardDescription className="text-xs flex items-center gap-1.5">
+              <UsersIcon className="size-3.5 text-primary" />
+              Travel Party
+            </CardDescription>
+            {isLoading ? (
+              <Skeleton className="h-8 w-24" />
+            ) : (
+              <CardTitle className="text-2xl">{members.length} Traveler{members.length !== 1 ? "s" : ""}</CardTitle>
+            )}
           </CardHeader>
           <CardContent className="text-xs text-muted-foreground">
-            1 Admin, 2 Editors
+            {isLoading ? (
+              <Skeleton className="h-4 w-36" />
+            ) : (
+              members
+                .map((m) =>
+                  m.role === "owner" ? `${m.user?.name} (Owner)` : m.user?.name
+                )
+                .slice(0, 2)
+                .join(", ") + (members.length > 2 ? ` +${members.length - 2} more` : "")
+            )}
           </CardContent>
         </Card>
       </div>
 
+      {/* Main content */}
       <div className="grid gap-6 md:grid-cols-2">
+        {/* Upcoming Itinerary Items */}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <RouteIcon className="size-4 text-primary" />
-              Upcoming Itinerary Items
+              Upcoming Activities
             </CardTitle>
-            <CardDescription className="text-xs">Next activities on your schedule</CardDescription>
+            <CardDescription className="text-xs">
+              Next activities on your schedule
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {[
-              { day: "Day 1", time: "14:00", title: "Shibuya Crossing & Hachiko Statue", location: "Shibuya" },
-              { day: "Day 1", time: "18:00", title: "Shibuya Sky Sunset View", location: "Shibuya Scramble Square" },
-              { day: "Day 2", time: "09:00", title: "Senso-ji Temple Walking Tour", location: "Asakusa" },
-            ].map((item, i) => (
-              <div key={i} className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
-                <div className="space-y-0.5">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-[10px] py-0 px-1.5">{item.day} • {item.time}</Badge>
-                    <span className="text-xs font-semibold">{item.title}</span>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground">{item.location}</p>
-                </div>
+            {isLoading ? (
+              Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-14 w-full" />
+              ))
+            ) : upcomingItems.length === 0 ? (
+              <div className="text-center py-6 text-muted-foreground">
+                <PlaneIcon className="size-8 mx-auto mb-2 opacity-30" />
+                <p className="text-xs">No activities scheduled yet.</p>
+                <p className="text-[11px]">Go to Itinerary to start planning your days.</p>
               </div>
-            ))}
+            ) : (
+              upcomingItems.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between p-3 rounded-lg border bg-muted/30"
+                >
+                  <div className="space-y-0.5 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant="outline" className="text-[10px] py-0 px-1.5 shrink-0">
+                        Day {item.dayNumber}
+                        {item.startTime ? ` • ${item.startTime.slice(0, 5)}` : ""}
+                      </Badge>
+                      <span className="text-xs font-semibold line-clamp-1">{item.title}</span>
+                    </div>
+                    {item.location && (
+                      <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                        <MapPinIcon className="size-3" />
+                        {item.location}
+                      </p>
+                    )}
+                  </div>
+                  {item.estimatedCost && Number(item.estimatedCost) > 0 && (
+                    <span className="text-xs font-semibold text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded shrink-0 ml-2">
+                      {item.currency ?? trip?.currency ?? "USD"} {Number(item.estimatedCost).toFixed(0)}
+                    </span>
+                  )}
+                </div>
+              ))
+            )}
           </CardContent>
           <div className="p-4 border-t bg-muted/10">
-            <Button variant="ghost" size="sm" render={<Link href={`/trips/${tripId}/itinerary`} />} className="w-full text-xs gap-1">
-              <span>View Full Interactive Itinerary</span>
-              <ArrowRightIcon className="size-3.5" />
+            <Button
+              variant="ghost"
+              size="sm"
+              asChild
+              className="w-full text-xs gap-1"
+            >
+              <Link href={`/trips/${tripId}/itinerary`}>
+                <span>View Full Itinerary Builder</span>
+                <ArrowRightIcon className="size-3.5" />
+              </Link>
             </Button>
           </div>
         </Card>
 
+        {/* Trip Stops / Destinations */}
         <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <SparklesIcon className="size-4 text-primary" />
-              Recommended Activities Nearby
-            </CardTitle>
-            <CardDescription className="text-xs">Based on your destination and stops</CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <MapPinIcon className="size-4 text-primary" />
+                Destinations & Stops
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Cities and stops on your route
+              </CardDescription>
+            </div>
+            <AddStopDialog tripId={tripId} />
           </CardHeader>
           <CardContent className="space-y-3">
-            {[
-              { title: "TeamLab Planets Digital Art", category: "Exhibition", rating: "4.9" },
-              { title: "Tsukiji Outer Market Food Tour", category: "Food & Dining", rating: "4.8" },
-              { title: "Meiji Jingu Shrine & Harajuku", category: "Culture", rating: "4.9" },
-            ].map((act, i) => (
-              <div key={i} className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
-                <div className="space-y-0.5">
-                  <span className="text-xs font-semibold">{act.title}</span>
-                  <p className="text-[11px] text-muted-foreground">{act.category} • ★ {act.rating}</p>
-                </div>
-                <Button size="sm" variant="outline" className="text-xs h-7">
-                  Add to Day
-                </Button>
+            {isLoading ? (
+              Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-16 w-full" />
+              ))
+            ) : stops.length === 0 ? (
+              <div className="text-center py-6 text-muted-foreground">
+                <MapPinIcon className="size-8 mx-auto mb-2 opacity-30" />
+                <p className="text-xs">No destinations added yet.</p>
+                <p className="text-[11px]">Click &quot;Add Destination&quot; to begin building your route.</p>
               </div>
-            ))}
+            ) : (
+              stops.map((stop, i) => (
+                <div
+                  key={stop.id}
+                  className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30"
+                >
+                  <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold text-xs">
+                    {i + 1}
+                  </div>
+                  {stop.city?.imageUrl ? (
+                    <div
+                      className="size-12 shrink-0 rounded-lg bg-cover bg-center border"
+                      style={{ backgroundImage: `url(${stop.city.imageUrl})` }}
+                    />
+                  ) : null}
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold line-clamp-1">
+                      {stop.city?.name ?? "Unknown City"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {stop.country?.name}
+                      {stop.arrivalDate
+                        ? ` · ${formatDate(stop.arrivalDate)}${stop.departureDate ? ` – ${formatDate(stop.departureDate)}` : ""}`
+                        : ""}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
           </CardContent>
           <div className="p-4 border-t bg-muted/10">
-            <Button variant="ghost" size="sm" render={<Link href="/discover/activities" />} className="w-full text-xs gap-1">
-              <span>Explore All Activities</span>
-              <ArrowRightIcon className="size-3.5" />
+            <Button
+              variant="ghost"
+              size="sm"
+              asChild
+              className="w-full text-xs gap-1"
+            >
+              <Link href="/discover/cities">
+                <SparklesIcon className="size-3.5" />
+                <span>Explore City Catalog</span>
+              </Link>
             </Button>
           </div>
         </Card>
       </div>
     </div>
-  )
+  );
 }

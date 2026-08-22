@@ -912,7 +912,7 @@ export async function seedDatabase() {
         status: "planned",
         visibility: "public",
         currency: "EUR",
-        budgetLimit: 3500,
+        budgetLimit: "3500",
       })
       .returning();
 
@@ -1177,7 +1177,7 @@ export async function seedDatabase() {
       status: "draft",
       visibility: "private",
       currency: "USD",
-      budgetLimit: 4200,
+      budgetLimit: "4200",
     })
     .onConflictDoNothing();
 
@@ -1195,7 +1195,7 @@ export async function seedDatabase() {
       status: "completed",
       visibility: "public",
       currency: "USD",
-      budgetLimit: 2400,
+      budgetLimit: "2400",
     })
     .onConflictDoNothing();
 
@@ -1213,7 +1213,7 @@ export async function seedDatabase() {
       status: "ongoing",
       visibility: "friends",
       currency: "INR",
-      budgetLimit: 65000,
+      budgetLimit: "65000",
     })
     .onConflictDoNothing();
 

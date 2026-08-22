@@ -37,3 +37,5 @@ export const tripDays = pgTable(
 
 export type TripDay = typeof tripDays.$inferSelect;
 export type NewTripDay = typeof tripDays.$inferInsert;
+export type TripDayTable = TripDay;
+export type NewTripDayTable = NewTripDay;

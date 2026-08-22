@@ -31,7 +31,7 @@ export default function PreferencesSettingsPage() {
         <form onSubmit={handleSave} className="space-y-4 max-w-xl">
           <Field>
             <FieldLabel htmlFor="currency">Default Currency</FieldLabel>
-            <Select value={currency} onValueChange={setCurrency}>
+            <Select value={currency} onValueChange={(val) => setCurrency(val ?? "")}>
               <SelectTrigger id="currency">
                 <SelectValue placeholder="Currency" />
               </SelectTrigger>
@@ -46,7 +46,7 @@ export default function PreferencesSettingsPage() {
 
           <Field>
             <FieldLabel htmlFor="distance">Distance Measurement</FieldLabel>
-            <Select value={distanceUnit} onValueChange={setDistanceUnit}>
+            <Select value={distanceUnit} onValueChange={(val) => setDistanceUnit(val ?? "")}>
               <SelectTrigger id="distance">
                 <SelectValue placeholder="Unit" />
               </SelectTrigger>
@@ -59,7 +59,7 @@ export default function PreferencesSettingsPage() {
 
           <Field>
             <FieldLabel htmlFor="dateFormat">Date Format</FieldLabel>
-            <Select value={dateFormat} onValueChange={setDateFormat}>
+            <Select value={dateFormat} onValueChange={(val) => setDateFormat(val ?? "")}>
               <SelectTrigger id="dateFormat">
                 <SelectValue placeholder="Date format" />
               </SelectTrigger>

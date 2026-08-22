@@ -131,7 +131,7 @@ export const tripFilterSchema = paginationSchema.extend({
   sortOrder: z.enum(["asc", "desc"]).default("desc"),
 });
 
-export type TripFilterInput = z.infer<typeof tripFilterSchema>;
+export type TripFilterInput = z.input<typeof tripFilterSchema>;
 
 // ==========================================
 // TRIP MEMBERS

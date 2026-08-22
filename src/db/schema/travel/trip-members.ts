@@ -37,3 +37,5 @@ export const tripMembers = pgTable(
 
 export type TripMember = typeof tripMembers.$inferSelect;
 export type NewTripMember = typeof tripMembers.$inferInsert;
+export type TripMemberTable = TripMember;
+export type NewTripMemberTable = NewTripMember;

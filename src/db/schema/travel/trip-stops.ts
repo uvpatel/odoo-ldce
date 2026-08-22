@@ -40,3 +40,5 @@ export const tripStops = pgTable(
 
 export type TripStop = typeof tripStops.$inferSelect;
 export type NewTripStop = typeof tripStops.$inferInsert;
+export type TripStopTable = TripStop;
+export type NewTripStopTable = NewTripStop;

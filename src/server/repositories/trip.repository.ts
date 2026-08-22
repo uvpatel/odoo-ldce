@@ -354,3 +354,5 @@ export class TripRepository {
     return deleted[0] ?? null;
   }
 }
+
+export const tripRepository = TripRepository;

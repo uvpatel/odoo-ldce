@@ -156,3 +156,5 @@ export class ActivityRepository {
     return results[0] ?? null;
   }
 }
+
+export const activityRepository = ActivityRepository;

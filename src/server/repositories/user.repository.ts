@@ -1,100 +1,119 @@
 import { db } from "@/db";
-import { user, UserTable, NewUserTable } from "@/db/schema/auth/users";
-import { userPreferences, UserPreferencesTable } from "@/db/schema/user/user-preferences";
-import { savedDestinations } from "@/db/schema/social/saved-destinations";
-import { cities } from "@/db/schema/catalog/cities";
-import { eq, desc, sql, ilike, or } from "drizzle-orm";
+import { user } from "@/db/schema/auth";
+import { userPreferences } from "@/db/schema/user";
+import { savedDestinations } from "@/db/schema/social";
+import { cities, countries } from "@/db/schema/catalog";
+import { eq, and, desc } from "drizzle-orm";
+import type { UpdateUserPreferencesInput } from "@/lib/validation";
 
 export class UserRepository {
-  async findById(id: string) {
-    const [u] = await db.select().from(user).where(eq(user.id, id)).limit(1);
-    return u || null;
+  static async findUserById(userId: string) {
+    const results = await db.select().from(user).where(eq(user.id, userId)).limit(1);
+    return results[0] ?? null;
   }
 
-  async findByEmail(email: string) {
-    const [u] = await db.select().from(user).where(eq(user.email, email)).limit(1);
-    return u || null;
-  }
+  static async findUserPreferences(userId: string) {
+    const results = await db
+      .select()
+      .from(userPreferences)
+      .where(eq(userPreferences.userId, userId))
+      .limit(1);
 
-  async getAllUsers(limit: number = 50, offset: number = 0, search?: string) {
-    if (search && search.trim()) {
-      const pattern = `%${search}%`;
-      return db
-        .select()
-        .from(user)
-        .where(or(ilike(user.name, pattern), ilike(user.email, pattern)))
-        .orderBy(desc(user.createdAt))
-        .limit(limit)
-        .offset(offset);
-    }
-    return db.select().from(user).orderBy(desc(user.createdAt)).limit(limit).offset(offset);
-  }
+    if (results[0]) return results[0];
 
-  async countUsers(search?: string) {
-    if (search && search.trim()) {
-      const pattern = `%${search}%`;
-      const res = await db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(user)
-        .where(or(ilike(user.name, pattern), ilike(user.email, pattern)));
-      return res[0]?.count ?? 0;
-    }
-    const res = await db.select({ count: sql<number>`count(*)::int` }).from(user);
-    return res[0]?.count ?? 0;
-  }
-
-  async updateRole(id: string, role: "employee" | "manager" | "hr" | "admin" | "super_admin") {
-    const [updated] = await db.update(user).set({ role, updatedAt: new Date() }).where(eq(user.id, id)).returning();
-    return updated || null;
-  }
-
-  async updateStatus(id: string, status: "active" | "inactive" | "suspended") {
-    const [updated] = await db.update(user).set({ status, updatedAt: new Date() }).where(eq(user.id, id)).returning();
-    return updated || null;
-  }
-
-  async getPreferences(userId: string) {
-    const [prefs] = await db.select().from(userPreferences).where(eq(userPreferences.userId, userId)).limit(1);
-    return prefs || null;
-  }
-
-  async upsertPreferences(userId: string, data: Partial<UserPreferencesTable>) {
-    const existing = await this.getPreferences(userId);
-    if (existing) {
-      const [updated] = await db
-        .update(userPreferences)
-        .set({ ...data, updatedAt: new Date() })
-        .where(eq(userPreferences.userId, userId))
-        .returning();
-      return updated;
-    }
-    const [created] = await db
+    // Create default preferences if not existing
+    const created = await db
       .insert(userPreferences)
       .values({
-        id: `pref_${userId}`,
         userId,
-        theme: data.theme || "system",
-        currency: data.currency || "USD",
-        language: data.language || "en",
-        emailNotifications: data.emailNotifications ?? true,
-        marketingEmails: data.marketingEmails ?? false,
+        language: "en",
+        currency: "USD",
+        timezone: "UTC",
+        isProfilePublic: false,
       })
       .returning();
-    return created;
+
+    return created[0];
   }
 
-  async getSavedDestinations(userId: string) {
+  static async updateUserPreferences(userId: string, input: UpdateUserPreferencesInput) {
+    // Ensure preferences record exists first
+    await this.findUserPreferences(userId);
+
+    const updateValues: Record<string, unknown> = {
+      updatedAt: new Date(),
+    };
+
+    if (input.language !== undefined) updateValues.language = input.language;
+    if (input.currency !== undefined) updateValues.currency = input.currency;
+    if (input.timezone !== undefined) updateValues.timezone = input.timezone;
+    if (input.isProfilePublic !== undefined) updateValues.isProfilePublic = input.isProfilePublic;
+
+    const updated = await db
+      .update(userPreferences)
+      .set(updateValues)
+      .where(eq(userPreferences.userId, userId))
+      .returning();
+
+    return updated[0] ?? null;
+  }
+
+  static async findSavedDestinations(userId: string) {
     return db
       .select({
         id: savedDestinations.id,
-        savedAt: savedDestinations.createdAt,
-        city: cities,
+        userId: savedDestinations.userId,
+        cityId: savedDestinations.cityId,
+        createdAt: savedDestinations.createdAt,
+        city: {
+          id: cities.id,
+          name: cities.name,
+          slug: cities.slug,
+          description: cities.description,
+          imageUrl: cities.imageUrl,
+          costIndex: cities.costIndex,
+          popularityScore: cities.popularityScore,
+        },
+        country: {
+          id: countries.id,
+          name: countries.name,
+          iso2: countries.iso2,
+          region: countries.region,
+        },
       })
       .from(savedDestinations)
       .innerJoin(cities, eq(savedDestinations.cityId, cities.id))
+      .innerJoin(countries, eq(cities.countryId, countries.id))
       .where(eq(savedDestinations.userId, userId))
       .orderBy(desc(savedDestinations.createdAt));
   }
+
+  static async isSavedDestination(userId: string, cityId: string): Promise<boolean> {
+    const results = await db
+      .select({ id: savedDestinations.id })
+      .from(savedDestinations)
+      .where(and(eq(savedDestinations.userId, userId), eq(savedDestinations.cityId, cityId)))
+      .limit(1);
+
+    return results.length > 0;
+  }
+
+  static async toggleSavedDestination(userId: string, cityId: string): Promise<{ saved: boolean }> {
+    const isSaved = await this.isSavedDestination(userId, cityId);
+
+    if (isSaved) {
+      await db
+        .delete(savedDestinations)
+        .where(and(eq(savedDestinations.userId, userId), eq(savedDestinations.cityId, cityId)));
+      return { saved: false };
+    } else {
+      await db.insert(savedDestinations).values({
+        userId,
+        cityId,
+      });
+      return { saved: true };
+    }
+  }
 }
 
-export const userRepository = new UserRepository();
+export const userRepository = UserRepository;

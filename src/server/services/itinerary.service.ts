@@ -1,68 +1,133 @@
-import { itineraryRepository } from "../repositories/itinerary.repository";
-import { authorizationService } from "./authorization.service";
-import { NewTripStopTable } from "@/db/schema/travel/trip-stops";
-import { NewTripDayTable } from "@/db/schema/travel/trip-days";
-import { NewItineraryItemTable } from "@/db/schema/travel/itinerary-items";
+import { ItineraryRepository } from "../repositories/itinerary.repository";
+import { AuthorizationService } from "./authorization.service";
+import type {
+  CreateTripStopInput,
+  UpdateTripStopInput,
+  CreateTripDayInput,
+  UpdateTripDayInput,
+  CreateItineraryItemInput,
+  UpdateItineraryItemInput,
+} from "@/lib/validation";
 
 export class ItineraryService {
-  async getFullItinerary(tripId: string) {
-    const stops = await itineraryRepository.getStopsByTrip(tripId);
-    const days = await itineraryRepository.getDaysByTrip(tripId);
-    const items = await itineraryRepository.getItemsByTrip(tripId);
-
-    return {
-      stops,
-      days: days.map((day) => ({
-        ...day,
-        items: items.filter((item) => item.dayId === day.id),
-      })),
-    };
+  static async addStop(userId: string, input: CreateTripStopInput, userRole?: string) {
+    const canEdit = await AuthorizationService.canEditTrip(userId, input.tripId, userRole);
+    if (!canEdit) {
+      throw new Error("Unauthorized: Cannot modify trip stops.");
+    }
+    return ItineraryRepository.createStop(input);
   }
 
-  // Stops
-  async addStop(userId: string, tripId: string, data: Omit<NewTripStopTable, "id" | "tripId">) {
-    const canEdit = await authorizationService.canEditTrip(userId, tripId);
-    if (!canEdit) throw new Error("Unauthorized to edit trip");
-
-    const id = `stp_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-    return itineraryRepository.createStop({ ...data, id, tripId });
+  static async updateStop(
+    userId: string,
+    tripId: string,
+    stopId: string,
+    input: UpdateTripStopInput,
+    userRole?: string
+  ) {
+    const canEdit = await AuthorizationService.canEditTrip(userId, tripId, userRole);
+    if (!canEdit) {
+      throw new Error("Unauthorized: Cannot modify trip stops.");
+    }
+    return ItineraryRepository.updateStop(stopId, input);
   }
 
-  async removeStop(userId: string, tripId: string, stopId: string) {
-    const canEdit = await authorizationService.canEditTrip(userId, tripId);
-    if (!canEdit) throw new Error("Unauthorized to edit trip");
-    return itineraryRepository.deleteStop(stopId);
+  static async deleteStop(userId: string, tripId: string, stopId: string, userRole?: string) {
+    const canEdit = await AuthorizationService.canEditTrip(userId, tripId, userRole);
+    if (!canEdit) {
+      throw new Error("Unauthorized: Cannot delete trip stop.");
+    }
+    return ItineraryRepository.deleteStop(stopId);
   }
 
-  // Days
-  async addDay(userId: string, tripId: string, data: Omit<NewTripDayTable, "id" | "tripId">) {
-    const canEdit = await authorizationService.canEditTrip(userId, tripId);
-    if (!canEdit) throw new Error("Unauthorized to edit trip");
-
-    const id = `day_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-    return itineraryRepository.createDay({ ...data, id, tripId });
+  static async reorderStops(userId: string, tripId: string, stopIds: string[], userRole?: string) {
+    const canEdit = await AuthorizationService.canEditTrip(userId, tripId, userRole);
+    if (!canEdit) {
+      throw new Error("Unauthorized: Cannot reorder trip stops.");
+    }
+    return ItineraryRepository.reorderStops(tripId, stopIds);
   }
 
-  // Items
-  async addItem(userId: string, tripId: string, data: Omit<NewItineraryItemTable, "id" | "tripId">) {
-    const canEdit = await authorizationService.canEditTrip(userId, tripId);
-    if (!canEdit) throw new Error("Unauthorized to edit trip");
-
-    const id = `itm_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-    return itineraryRepository.createItem({ ...data, id, tripId });
+  static async addDay(userId: string, input: CreateTripDayInput, userRole?: string) {
+    const canEdit = await AuthorizationService.canEditTrip(userId, input.tripId, userRole);
+    if (!canEdit) {
+      throw new Error("Unauthorized: Cannot modify trip days.");
+    }
+    return ItineraryRepository.createDay(input);
   }
 
-  async updateItem(userId: string, tripId: string, itemId: string, data: Partial<NewItineraryItemTable>) {
-    const canEdit = await authorizationService.canEditTrip(userId, tripId);
-    if (!canEdit) throw new Error("Unauthorized to edit trip");
-    return itineraryRepository.updateItem(itemId, data);
+  static async updateDay(
+    userId: string,
+    tripId: string,
+    dayId: string,
+    input: UpdateTripDayInput,
+    userRole?: string
+  ) {
+    const canEdit = await AuthorizationService.canEditTrip(userId, tripId, userRole);
+    if (!canEdit) {
+      throw new Error("Unauthorized: Cannot modify trip days.");
+    }
+    return ItineraryRepository.updateDay(dayId, input);
   }
 
-  async removeItem(userId: string, tripId: string, itemId: string) {
-    const canEdit = await authorizationService.canEditTrip(userId, tripId);
-    if (!canEdit) throw new Error("Unauthorized to edit trip");
-    return itineraryRepository.deleteItem(itemId);
+  static async deleteDay(userId: string, tripId: string, dayId: string, userRole?: string) {
+    const canEdit = await AuthorizationService.canEditTrip(userId, tripId, userRole);
+    if (!canEdit) {
+      throw new Error("Unauthorized: Cannot delete trip day.");
+    }
+    return ItineraryRepository.deleteDay(dayId);
+  }
+
+  static async addItineraryItem(
+    userId: string,
+    input: CreateItineraryItemInput,
+    userRole?: string
+  ) {
+    const canEdit = await AuthorizationService.canEditTrip(userId, input.tripId, userRole);
+    if (!canEdit) {
+      throw new Error("Unauthorized: Cannot add itinerary items.");
+    }
+    return ItineraryRepository.createItineraryItem(input);
+  }
+
+  static async updateItineraryItem(
+    userId: string,
+    tripId: string,
+    itemId: string,
+    input: UpdateItineraryItemInput,
+    userRole?: string
+  ) {
+    const canEdit = await AuthorizationService.canEditTrip(userId, tripId, userRole);
+    if (!canEdit) {
+      throw new Error("Unauthorized: Cannot edit itinerary item.");
+    }
+    return ItineraryRepository.updateItineraryItem(itemId, input);
+  }
+
+  static async deleteItineraryItem(
+    userId: string,
+    tripId: string,
+    itemId: string,
+    userRole?: string
+  ) {
+    const canEdit = await AuthorizationService.canEditTrip(userId, tripId, userRole);
+    if (!canEdit) {
+      throw new Error("Unauthorized: Cannot delete itinerary item.");
+    }
+    return ItineraryRepository.deleteItineraryItem(itemId);
+  }
+
+  static async reorderItineraryItems(
+    userId: string,
+    tripId: string,
+    tripDayId: string,
+    itemIds: string[],
+    userRole?: string
+  ) {
+    const canEdit = await AuthorizationService.canEditTrip(userId, tripId, userRole);
+    if (!canEdit) {
+      throw new Error("Unauthorized: Cannot reorder itinerary items.");
+    }
+    return ItineraryRepository.reorderItineraryItems(tripDayId, itemIds);
   }
 }
-
-export const itineraryService = new ItineraryService();

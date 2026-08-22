@@ -16,15 +16,15 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Acme Inc. Dashboard",
-  description: "Production-grade authentication and management dashboard ldce",
+  title: "GlobeTrotter - Collaborative Travel Planning & Itinerary Platform",
+  description: "Plan multi-city journeys, collaborate with friends, manage real-time budgets, and discover verified sights worldwide.",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode } ) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased `}
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">

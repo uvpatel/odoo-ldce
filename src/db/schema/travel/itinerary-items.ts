@@ -51,3 +51,5 @@ export const itineraryItems = pgTable(
 
 export type ItineraryItem = typeof itineraryItems.$inferSelect;
 export type NewItineraryItem = typeof itineraryItems.$inferInsert;
+export type ItineraryItemTable = ItineraryItem;
+export type NewItineraryItemTable = NewItineraryItem;

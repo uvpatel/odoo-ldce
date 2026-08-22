@@ -41,3 +41,5 @@ export const cities = pgTable(
 
 export type City = typeof cities.$inferSelect;
 export type NewCity = typeof cities.$inferInsert;
+export type CityTable = City;
+export type NewCityTable = NewCity;

@@ -56,3 +56,5 @@ export const activities = pgTable(
 
 export type Activity = typeof activities.$inferSelect;
 export type NewActivity = typeof activities.$inferInsert;
+export type ActivityTable = Activity;
+export type NewActivityTable = NewActivity;

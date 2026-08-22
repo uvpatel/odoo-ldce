@@ -172,3 +172,5 @@ export class CityRepository {
     return results[0] ?? null;
   }
 }
+
+export const cityRepository = CityRepository;

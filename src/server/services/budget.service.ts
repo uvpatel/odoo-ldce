@@ -1,46 +1,85 @@
-import { budgetRepository } from "../repositories/budget.repository";
-import { expenseRepository } from "../repositories/expense.repository";
-import { authorizationService } from "./authorization.service";
+import { BudgetRepository } from "../repositories/budget.repository";
+import { AuthorizationService } from "./authorization.service";
+import type {
+  UpsertTripBudgetInput,
+  CreateExpenseInput,
+  UpdateExpenseInput,
+  ExpenseFilterInput,
+} from "@/lib/validation";
 
 export class BudgetService {
-  async getTripBudgetSummary(tripId: string) {
-    const budget = await budgetRepository.findByTripId(tripId);
-    const expensesList = await expenseRepository.findByTripId(tripId);
-    const totalSpent = await expenseRepository.getTotalByTrip(tripId);
+  static async setTripBudget(userId: string, input: UpsertTripBudgetInput, userRole?: string) {
+    const canManage = await AuthorizationService.canManageBudget(userId, input.tripId, userRole);
+    if (!canManage) {
+      throw new Error("Unauthorized: Cannot manage budget for this trip.");
+    }
+    return BudgetRepository.upsertTripBudget(input);
+  }
 
-    const totalBudget = parseFloat(budget?.totalBudget || "0");
-    const remaining = totalBudget - totalSpent;
-    const percentageUsed = totalBudget > 0 ? Math.min(100, Math.round((totalSpent / totalBudget) * 100)) : 0;
-
-    // Breakdown by category
-    const categoryTotals: Record<string, number> = {};
-    expensesList.forEach((exp) => {
-      const amt = parseFloat(exp.amount);
-      categoryTotals[exp.category] = (categoryTotals[exp.category] || 0) + amt;
+  static async getBudgetSummary(
+    tripId: string,
+    accessCtx: { userId?: string | null; userRole?: string | null; shareToken?: string | null }
+  ) {
+    const canView = await AuthorizationService.canViewTrip({
+      tripId,
+      userId: accessCtx.userId,
+      userRole: accessCtx.userRole,
+      shareToken: accessCtx.shareToken,
     });
 
-    const categoryBreakdown = Object.entries(categoryTotals).map(([category, amount]) => ({
-      category,
-      amount,
-      percentage: totalSpent > 0 ? Math.round((amount / totalSpent) * 100) : 0,
-    }));
+    if (!canView) {
+      throw new Error("Unauthorized: Cannot view budget.");
+    }
 
-    return {
-      budget,
-      totalBudget,
-      totalSpent,
-      remaining,
-      percentageUsed,
-      categoryBreakdown,
-      expenses: expensesList,
-    };
+    return BudgetRepository.calculateBudgetSummary(tripId);
   }
 
-  async updateBudget(userId: string, tripId: string, totalBudget: string, currency: string = "USD", notes?: string) {
-    const canEdit = await authorizationService.canEditTrip(userId, tripId);
-    if (!canEdit) throw new Error("Unauthorized to edit trip budget");
-    return budgetRepository.upsert(tripId, totalBudget, currency, notes);
+  static async getExpenses(userId: string, filters: ExpenseFilterInput, userRole?: string) {
+    const canView = await AuthorizationService.canViewTrip({
+      tripId: filters.tripId,
+      userId,
+      userRole,
+    });
+
+    if (!canView) {
+      throw new Error("Unauthorized: Cannot view expenses.");
+    }
+
+    return BudgetRepository.findExpenses(filters);
+  }
+
+  static async addExpense(userId: string, input: CreateExpenseInput, userRole?: string) {
+    const canManage = await AuthorizationService.canManageBudget(userId, input.tripId, userRole);
+    if (!canManage) {
+      throw new Error("Unauthorized: Cannot add expenses to this trip.");
+    }
+    return BudgetRepository.createExpense(input);
+  }
+
+  static async updateExpense(
+    userId: string,
+    tripId: string,
+    expenseId: string,
+    input: UpdateExpenseInput,
+    userRole?: string
+  ) {
+    const canManage = await AuthorizationService.canManageBudget(userId, tripId, userRole);
+    if (!canManage) {
+      throw new Error("Unauthorized: Cannot edit expenses for this trip.");
+    }
+    return BudgetRepository.updateExpense(expenseId, input);
+  }
+
+  static async deleteExpense(
+    userId: string,
+    tripId: string,
+    expenseId: string,
+    userRole?: string
+  ) {
+    const canManage = await AuthorizationService.canManageBudget(userId, tripId, userRole);
+    if (!canManage) {
+      throw new Error("Unauthorized: Cannot delete expense.");
+    }
+    return BudgetRepository.deleteExpense(expenseId);
   }
 }
-
-export const budgetService = new BudgetService();

@@ -1,45 +1,103 @@
 import { db } from "@/db";
-import { tripShares, TripShareTable, NewTripShareTable } from "@/db/schema/social/trip-shares";
-import { trips } from "@/db/schema/travel/trips";
-import { eq, sql } from "drizzle-orm";
+import { tripShares } from "@/db/schema/social";
+import { trips } from "@/db/schema/travel";
+import { user } from "@/db/schema/auth";
+import { eq, and, isNull, gt, sql } from "drizzle-orm";
+import type { CreateTripShareInput, UpdateTripShareInput } from "@/lib/validation";
+import crypto from "crypto";
 
 export class SharingRepository {
-  async findByToken(shareToken: string) {
-    const [share] = await db
+  static generateSecureToken(): string {
+    return crypto.randomBytes(16).toString("hex");
+  }
+
+  static async createShare(
+    tripId: string,
+    createdBy: string,
+    input: Partial<CreateTripShareInput>
+  ) {
+    const token = this.generateSecureToken();
+
+    const created = await db
+      .insert(tripShares)
+      .values({
+        tripId,
+        shareToken: token,
+        allowCopy: input.allowCopy ?? true,
+        expiresAt: input.expiresAt ?? null,
+        createdBy,
+      })
+      .returning();
+
+    return created[0];
+  }
+
+  static async findShareByToken(token: string) {
+    const now = new Date();
+    const results = await db
       .select({
         share: tripShares,
         trip: trips,
+        creator: {
+          id: user.id,
+          name: user.name,
+          image: user.image,
+        },
       })
       .from(tripShares)
       .innerJoin(trips, eq(tripShares.tripId, trips.id))
-      .where(eq(tripShares.shareToken, shareToken))
+      .innerJoin(user, eq(tripShares.createdBy, user.id))
+      .where(
+        and(
+          eq(tripShares.shareToken, token),
+          eq(tripShares.isActive, true),
+          isNull(trips.deletedAt),
+          sql`(${tripShares.expiresAt} IS NULL OR ${tripShares.expiresAt} > ${now})`
+        )
+      )
       .limit(1);
-    return share || null;
+
+    if (!results[0]) return null;
+    return results[0];
   }
 
-  async findByTripId(tripId: string) {
-    const [share] = await db.select().from(tripShares).where(eq(tripShares.tripId, tripId)).limit(1);
-    return share || null;
+  static async findSharesByTrip(tripId: string) {
+    return db
+      .select({
+        share: tripShares,
+        creator: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+        },
+      })
+      .from(tripShares)
+      .innerJoin(user, eq(tripShares.createdBy, user.id))
+      .where(eq(tripShares.tripId, tripId));
   }
 
-  async create(data: NewTripShareTable) {
-    const [share] = await db.insert(tripShares).values(data).returning();
-    return share;
-  }
+  static async updateShare(shareId: string, input: UpdateTripShareInput) {
+    const updateValues: Record<string, unknown> = {
+      updatedAt: new Date(),
+    };
 
-  async incrementViews(shareToken: string) {
-    await db
+    if (input.isActive !== undefined) updateValues.isActive = input.isActive;
+    if (input.allowCopy !== undefined) updateValues.allowCopy = input.allowCopy;
+    if (input.expiresAt !== undefined) updateValues.expiresAt = input.expiresAt;
+
+    const updated = await db
       .update(tripShares)
-      .set({ viewCount: sql`${tripShares.viewCount} + 1` })
-      .where(eq(tripShares.shareToken, shareToken));
+      .set(updateValues)
+      .where(eq(tripShares.id, shareId))
+      .returning();
+
+    return updated[0] ?? null;
   }
 
-  async incrementCopies(shareToken: string) {
-    await db
-      .update(tripShares)
-      .set({ copyCount: sql`${tripShares.copyCount} + 1` })
-      .where(eq(tripShares.shareToken, shareToken));
+  static async deleteShare(shareId: string) {
+    const deleted = await db.delete(tripShares).where(eq(tripShares.id, shareId)).returning();
+    return deleted[0] ?? null;
   }
 }
 
-export const sharingRepository = new SharingRepository();
+export const sharingRepository = SharingRepository;

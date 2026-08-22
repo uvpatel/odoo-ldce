@@ -1,63 +1,71 @@
 import { cn } from "@/lib/utils";
 import {
   IconAdjustmentsBolt,
+  IconCalendar,
   IconCloud,
   IconCurrencyDollar,
   IconEaseInOut,
   IconHeart,
   IconHelp,
+  IconMapPin,
   IconRouteAltLeft,
+  IconSearch,
+  IconShare,
   IconTerminal2,
+  IconUsers,
 } from "@tabler/icons-react";
 
 export default function FeaturesSectionDemo() {
   const features = [
-    {
-      title: "Built for developers",
-      description:
-        "Built for engineers, developers, dreamers, thinkers and doers.",
-      icon: <IconTerminal2 />,
-    },
-    {
-      title: "Ease of use",
-      description:
-        "It's as easy as using an Apple, and as expensive as buying one.",
-      icon: <IconEaseInOut />,
-    },
-    {
-      title: "Pricing like no other",
-      description:
-        "Our prices are best in the market. No cap, no lock, no credit card required.",
-      icon: <IconCurrencyDollar />,
-    },
-    {
-      title: "100% Uptime guarantee",
-      description: "We just cannot be taken down by anyone.",
-      icon: <IconCloud />,
-    },
-    {
-      title: "Multi-tenant Architecture",
-      description: "You can simply share passwords instead of buying new seats",
-      icon: <IconRouteAltLeft />,
-    },
-    {
-      title: "24/7 Customer Support",
-      description:
-        "We are available a 100% of the time. Atleast our AI Agents are.",
-      icon: <IconHelp />,
-    },
-    {
-      title: "Money back guarantee",
-      description:
-        "If you donot like EveryAI, we will convince you to like us.",
-      icon: <IconAdjustmentsBolt />,
-    },
-    {
-      title: "And everything else",
-      description: "I just ran out of copy ideas. Accept my sincere apologies",
-      icon: <IconHeart />,
-    },
-  ];
+  {
+    title: "Personalized Trip Planning",
+    description:
+      "Create customized itineraries based on your destinations, travel dates, interests, and budget.",
+    icon: <IconRouteAltLeft />,
+  },
+  {
+    title: "Multi-City Itineraries",
+    description:
+      "Add multiple cities, define stop durations, and organize your complete journey in one place.",
+    icon: <IconMapPin />,
+  },
+  {
+    title: "City and Activity Discovery",
+    description:
+      "Explore popular destinations and discover activities based on category, cost, duration, and interests.",
+    icon: <IconSearch />,
+  },
+  {
+    title: "Smart Budget Tracking",
+    description:
+      "Automatically calculate costs for transportation, accommodation, meals, activities, and more.",
+    icon: <IconCurrencyDollar />,
+  },
+  {
+    title: "Visual Travel Timeline",
+    description:
+      "Review your day-wise travel plan through interactive calendar, list, and timeline views.",
+    icon: <IconCalendar />,
+  },
+  {
+    title: "Flexible Itinerary Builder",
+    description:
+      "Add, edit, remove, and reorder cities or activities as your travel plans evolve.",
+    icon: <IconAdjustmentsBolt />,
+  },
+  {
+    title: "Shareable Travel Plans",
+    description:
+      "Publish your itinerary through a public link and share your journey with friends or the community.",
+    icon: <IconShare />,
+  },
+  {
+    title: "Travel Together",
+    description:
+      "Discover public itineraries, copy inspiring trips, and personalize them for your own adventure.",
+    icon: <IconUsers />,
+  },
+];
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4  relative z-10 py-10 max-w-7xl mx-auto">
       {features.map((feature, index) => (

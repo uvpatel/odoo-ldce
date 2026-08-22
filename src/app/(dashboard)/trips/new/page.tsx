@@ -16,6 +16,7 @@ import {
   UsersIcon,
   CheckIcon,
   Loader2Icon,
+  ImageIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,6 +32,7 @@ const createTripFormSchema = z
   .object({
     name: z.string().min(1, "Trip name is required").max(200, "Trip name too long"),
     description: z.string().max(2000).optional(),
+    coverImageUrl: z.string().trim().url("Enter a valid image URL").optional().or(z.literal("")),
     startDate: z.string().optional(),
     endDate: z.string().optional(),
     visibility: z.enum(["private", "friends", "public"]),
@@ -76,6 +78,7 @@ const VISIBILITY_OPTIONS = [
 export default function NewTripPage() {
   const router = useRouter();
   const createTripMutation = useCreateTrip();
+  const [failedCoverPreview, setFailedCoverPreview] = React.useState<string | null>(null);
 
   const {
     register,
@@ -88,11 +91,23 @@ export default function NewTripPage() {
     defaultValues: {
       visibility: "private",
       currency: "USD",
+      coverImageUrl: "",
     },
   });
 
   const selectedVisibility = watch("visibility");
   const selectedCurrency = watch("currency");
+  const coverImageUrl = watch("coverImageUrl")?.trim() ?? "";
+  const coverPreviewUrl = React.useMemo(() => {
+    if (!coverImageUrl) return null;
+
+    try {
+      const url = new URL(coverImageUrl);
+      return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : null;
+    } catch {
+      return null;
+    }
+  }, [coverImageUrl]);
 
   const onSubmit = async (values: CreateTripFormValues) => {
     const budgetNum =
@@ -103,6 +118,7 @@ export default function NewTripPage() {
     const trip = await createTripMutation.mutateAsync({
       name: values.name,
       description: values.description ?? null,
+      coverImageUrl: values.coverImageUrl?.trim() || null,
       startDate: values.startDate || null,
       endDate: values.endDate || null,
       visibility: values.visibility,
@@ -166,6 +182,47 @@ export default function NewTripPage() {
                 rows={3}
                 {...register("description")}
               />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="coverImageUrl">Cover Image URL (Optional)</Label>
+              <Input
+                id="coverImageUrl"
+                type="url"
+                inputMode="url"
+                placeholder="https://images.example.com/my-trip.jpg"
+                aria-invalid={!!errors.coverImageUrl}
+                {...register("coverImageUrl")}
+              />
+              {errors.coverImageUrl ? (
+                <p className="text-xs text-destructive">{errors.coverImageUrl.message}</p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Paste a public HTTP(S) image URL to preview your trip cover.
+                </p>
+              )}
+
+              {coverPreviewUrl && failedCoverPreview !== coverPreviewUrl ? (
+                <div className="relative aspect-video overflow-hidden rounded-lg border bg-muted">
+                  {/* Arbitrary user-provided preview URLs cannot be declared in Next image remotePatterns. */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    key={coverPreviewUrl}
+                    src={coverPreviewUrl}
+                    alt="Trip cover preview"
+                    className="h-full w-full object-cover"
+                    onError={() => setFailedCoverPreview(coverPreviewUrl)}
+                  />
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-linear-to-t from-black/60 to-transparent px-3 pb-2 pt-8 text-xs font-medium text-white">
+                    Cover preview
+                  </div>
+                </div>
+              ) : coverPreviewUrl && failedCoverPreview === coverPreviewUrl ? (
+                <div className="flex items-center gap-2 rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
+                  <ImageIcon className="size-4" />
+                  This image could not be loaded. Check that the URL is public and points to an image.
+                </div>
+              ) : null}
             </div>
           </CardContent>
         </Card>

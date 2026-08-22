@@ -1,4 +1,5 @@
 import { BudgetRepository } from "../repositories/budget.repository";
+import { ItineraryRepository } from "../repositories/itinerary.repository";
 import { AuthorizationService } from "./authorization.service";
 import type {
   UpsertTripBudgetInput,
@@ -8,6 +9,31 @@ import type {
 } from "@/lib/validation";
 
 export class BudgetService {
+  private static async validateExpenseParents(
+    tripId: string,
+    input: Pick<CreateExpenseInput, "tripDayId" | "itineraryItemId">
+  ) {
+    if (
+      input.tripDayId &&
+      !(await ItineraryRepository.findTripDayById(tripId, input.tripDayId))
+    ) {
+      throw new Error("Invalid trip day: The day does not belong to this trip.");
+    }
+
+    if (input.itineraryItemId) {
+      const item = await ItineraryRepository.findItineraryItemById(
+        tripId,
+        input.itineraryItemId
+      );
+      if (!item) {
+        throw new Error("Invalid itinerary item: The item does not belong to this trip.");
+      }
+      if (input.tripDayId && item.tripDayId !== input.tripDayId) {
+        throw new Error("Invalid itinerary item: The item is not scheduled on the selected day.");
+      }
+    }
+  }
+
   static async setTripBudget(userId: string, input: UpsertTripBudgetInput, userRole?: string) {
     const canManage = await AuthorizationService.canManageBudget(userId, input.tripId, userRole);
     if (!canManage) {
@@ -53,6 +79,7 @@ export class BudgetService {
     if (!canManage) {
       throw new Error("Unauthorized: Cannot add expenses to this trip.");
     }
+    await this.validateExpenseParents(input.tripId, input);
     return BudgetRepository.createExpense(input);
   }
 
@@ -67,7 +94,8 @@ export class BudgetService {
     if (!canManage) {
       throw new Error("Unauthorized: Cannot edit expenses for this trip.");
     }
-    return BudgetRepository.updateExpense(expenseId, input);
+    await this.validateExpenseParents(tripId, input);
+    return BudgetRepository.updateExpense(tripId, expenseId, input);
   }
 
   static async deleteExpense(
@@ -80,6 +108,6 @@ export class BudgetService {
     if (!canManage) {
       throw new Error("Unauthorized: Cannot delete expense.");
     }
-    return BudgetRepository.deleteExpense(expenseId);
+    return BudgetRepository.deleteExpense(tripId, expenseId);
   }
 }

@@ -114,6 +114,18 @@ export class UserRepository {
       return { saved: true };
     }
   }
+
+  static async removeSavedDestination(
+    userId: string,
+    cityId: string
+  ): Promise<{ saved: false; removed: boolean }> {
+    const removed = await db
+      .delete(savedDestinations)
+      .where(and(eq(savedDestinations.userId, userId), eq(savedDestinations.cityId, cityId)))
+      .returning({ id: savedDestinations.id });
+
+    return { saved: false, removed: removed.length > 0 };
+  }
 }
 
 export const userRepository = UserRepository;

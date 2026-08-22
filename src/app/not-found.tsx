@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { CompassIcon, HomeIcon, ArrowLeftIcon, MapPinOffIcon } from "lucide-react"
+import { HomeIcon, MapPinOffIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 export default function NotFoundPage() {
@@ -11,7 +11,7 @@ export default function NotFoundPage() {
       <div className="max-w-md space-y-2">
         <h1 className="text-4xl font-extrabold tracking-tight">404 - Off the Map</h1>
         <p className="text-sm text-muted-foreground">
-          Looks like this destination hasn't been discovered yet or the itinerary has moved.
+          Looks like this destination hasn&apos;t been discovered yet or the itinerary has moved.
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-3">

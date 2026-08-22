@@ -10,7 +10,6 @@ import {
   StarIcon,
   ArrowLeftIcon,
   ClockIcon,
-  DollarSignIcon,
   PlusIcon,
   CheckCircle2Icon,
   UsersIcon,
@@ -18,7 +17,7 @@ import {
   CompassIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -37,41 +36,80 @@ import { useTrips } from "@/features/trips/hooks/use-trips";
 import { apiClient } from "@/lib/api-client";
 import { tripKeys, catalogKeys } from "@/lib/query-keys";
 import type { Activity } from "@/features/discover/api/discover.api";
+import type { TripDetails } from "@/features/trips/api/trips.api";
 
 function AddActivityToTripModal({ activity }: { activity: Activity }) {
   const [open, setOpen] = React.useState(false);
   const [selectedTripId, setSelectedTripId] = React.useState("");
-  const [selectedDayNumber, setSelectedDayNumber] = React.useState("1");
+  const [selectedTripDayId, setSelectedTripDayId] = React.useState("");
   const [startTime, setStartTime] = React.useState("10:00");
   const [notes, setNotes] = React.useState("");
   const queryClient = useQueryClient();
 
-  const { data: tripsData } = useTrips({ limit: 50, sortBy: "createdAt", sortOrder: "desc" });
+  const { data: tripsData, isLoading: areTripsLoading } = useTrips({
+    limit: 50,
+    sortBy: "createdAt",
+    sortOrder: "desc",
+  });
   const trips = tripsData?.items ?? [];
+
+  const {
+    data: selectedTripData,
+    isLoading: isSelectedTripLoading,
+    isError: isSelectedTripError,
+  } = useQuery<TripDetails>({
+    queryKey: tripKeys.detail(selectedTripId),
+    queryFn: () => apiClient.get(`/api/trips/${selectedTripId}`),
+    enabled: open && !!selectedTripId,
+  });
+
+  const selectedTripDays = selectedTripData?.days ?? [];
+  const selectedDay = selectedTripDays.find((day) => day.id === selectedTripDayId);
+  const canEditSelectedTrip = selectedTripData?.permissions.canEdit === true;
 
   const addItineraryMutation = useMutation({
     mutationFn: () =>
       apiClient.post(`/api/trips/${selectedTripId}/itinerary`, {
-        dayNumber: parseInt(selectedDayNumber, 10),
+        tripDayId: selectedTripDayId,
         title: activity.name,
         description: activity.description ?? null,
         activityId: activity.id,
-        itemType: "activity",
+        type: "activity",
         startTime: startTime || null,
         estimatedCost: activity.estimatedCost ? parseFloat(activity.estimatedCost) : 0,
         currency: activity.currency || "USD",
-        locationName: activity.city?.name ?? null,
+        location: activity.city?.name ?? null,
         notes: notes || null,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: tripKeys.detail(selectedTripId) });
-      toast.success(`"${activity.name}" added to Day ${selectedDayNumber}!`);
+      queryClient.invalidateQueries({ queryKey: tripKeys.itinerary(selectedTripId) });
+      toast.success(
+        `"${activity.name}" added to ${selectedDay ? `Day ${selectedDay.dayNumber}` : "your itinerary"}!`
+      );
       setOpen(false);
       setSelectedTripId("");
+      setSelectedTripDayId("");
+      setStartTime("10:00");
       setNotes("");
     },
     onError: (e: Error) => toast.error(e.message || "Failed to add activity to trip"),
   });
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen);
+    if (!nextOpen) {
+      setSelectedTripId("");
+      setSelectedTripDayId("");
+      setStartTime("10:00");
+      setNotes("");
+    }
+  };
+
+  const handleTripChange = (tripId: string | null) => {
+    setSelectedTripId(tripId ?? "");
+    setSelectedTripDayId("");
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,11 +117,19 @@ function AddActivityToTripModal({ activity }: { activity: Activity }) {
       toast.error("Please select a trip");
       return;
     }
+    if (!canEditSelectedTrip) {
+      toast.error("You do not have permission to edit this trip");
+      return;
+    }
+    if (!selectedTripDayId) {
+      toast.error("Please select an itinerary day");
+      return;
+    }
     addItineraryMutation.mutate();
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button className="w-full gap-1.5 text-xs">
           <PlusIcon className="size-3.5" />
@@ -97,7 +143,12 @@ function AddActivityToTripModal({ activity }: { activity: Activity }) {
             Schedule {activity.name} into one of your planned trips.
           </DialogDescription>
         </DialogHeader>
-        {trips.length === 0 ? (
+        {areTripsLoading ? (
+          <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
+            <Loader2Icon className="size-4 animate-spin" />
+            Loading your trips...
+          </div>
+        ) : trips.length === 0 ? (
           <div className="py-6 text-center text-sm text-muted-foreground space-y-3">
             <p>You have no active trips yet.</p>
             <Button asChild size="sm">
@@ -108,7 +159,7 @@ function AddActivityToTripModal({ activity }: { activity: Activity }) {
           <form onSubmit={handleSubmit} className="space-y-4 mt-2">
             <div className="space-y-1.5">
               <Label htmlFor="actTrip">Choose Trip *</Label>
-              <Select value={selectedTripId} onValueChange={(v) => setSelectedTripId(v ?? "")}>
+              <Select value={selectedTripId} onValueChange={handleTripChange}>
                 <SelectTrigger id="actTrip">
                   <SelectValue placeholder="Select a trip..." />
                 </SelectTrigger>
@@ -122,27 +173,57 @@ function AddActivityToTripModal({ activity }: { activity: Activity }) {
               </Select>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="dayNum">Day Number</Label>
-                <Input
-                  id="dayNum"
-                  type="number"
-                  min="1"
-                  max="60"
-                  value={selectedDayNumber}
-                  onChange={(e) => setSelectedDayNumber(e.target.value)}
-                />
+            {selectedTripId && isSelectedTripLoading ? (
+              <div className="flex items-center gap-2 rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
+                <Loader2Icon className="size-3.5 animate-spin" />
+                Loading itinerary days...
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="actTime">Start Time</Label>
-                <Input
-                  id="actTime"
-                  type="time"
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                />
+            ) : selectedTripId && isSelectedTripError ? (
+              <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive">
+                This trip could not be loaded. Choose another trip or try again.
               </div>
+            ) : selectedTripData && !canEditSelectedTrip ? (
+              <div className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
+                You have view-only access to this trip and cannot schedule activities in it.
+              </div>
+            ) : selectedTripData && selectedTripDays.length === 0 ? (
+              <div className="space-y-3 rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
+                <p>
+                  This trip has no itinerary days yet. Add travel dates and planning days before
+                  scheduling this activity.
+                </p>
+                <Button asChild type="button" variant="outline" size="sm">
+                  <Link href={`/trips/${selectedTripId}/itinerary`}>Open Trip Itinerary</Link>
+                </Button>
+              </div>
+            ) : selectedTripData ? (
+              <div className="space-y-1.5">
+                <Label htmlFor="actTripDay">Itinerary Day *</Label>
+                <Select value={selectedTripDayId} onValueChange={(value) => setSelectedTripDayId(value ?? "")}>
+                  <SelectTrigger id="actTripDay">
+                    <SelectValue placeholder="Choose a day..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {selectedTripDays.map((day) => (
+                      <SelectItem key={day.id} value={day.id}>
+                        Day {day.dayNumber}
+                        {day.title ? ` · ${day.title}` : ""}
+                        {day.date ? ` (${day.date.slice(0, 10)})` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
+
+            <div className="space-y-1.5">
+              <Label htmlFor="actTime">Start Time</Label>
+              <Input
+                id="actTime"
+                type="time"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+              />
             </div>
 
             <div className="space-y-1.5">
@@ -156,10 +237,20 @@ function AddActivityToTripModal({ activity }: { activity: Activity }) {
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)}>
+              <Button type="button" variant="outline" size="sm" onClick={() => handleOpenChange(false)}>
                 Cancel
               </Button>
-              <Button type="submit" size="sm" disabled={addItineraryMutation.isPending} className="gap-1">
+              <Button
+                type="submit"
+                size="sm"
+                disabled={
+                  addItineraryMutation.isPending ||
+                  isSelectedTripLoading ||
+                  !canEditSelectedTrip ||
+                  !selectedTripDayId
+                }
+                className="gap-1"
+              >
                 {addItineraryMutation.isPending ? (
                   <Loader2Icon className="size-3.5 animate-spin" />
                 ) : (
@@ -224,6 +315,7 @@ export default function ActivityDetailPage() {
 
       <div className="relative aspect-21/9 w-full overflow-hidden rounded-2xl border shadow-sm bg-muted">
         {activity.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={activity.imageUrl}
             alt={activity.name}

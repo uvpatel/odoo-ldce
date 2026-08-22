@@ -83,8 +83,8 @@ export default function TripMembersPage() {
   });
 
   const removeMemberMutation = useMutation({
-    mutationFn: (memberId: string) =>
-      apiClient.delete(`/api/trips/${tripId}/members/${memberId}`),
+    mutationFn: (membershipId: string) =>
+      apiClient.delete(`/api/trips/${tripId}/members/${membershipId}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: tripKeys.detail(tripId) });
       queryClient.invalidateQueries({ queryKey: tripKeys.members(tripId) });

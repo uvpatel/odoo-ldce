@@ -14,14 +14,23 @@ export async function POST(
     }
 
     let customName: string | undefined;
+    let shareToken: string | undefined;
     try {
-      const body = await req.json();
-      customName = body.name;
+      const body: unknown = await req.json();
+      if (body && typeof body === "object") {
+        const payload = body as Record<string, unknown>;
+        customName = typeof payload.name === "string" ? payload.name : undefined;
+        shareToken = typeof payload.shareToken === "string" ? payload.shareToken : undefined;
+      }
     } catch {
       // Body optional
     }
 
-    const copiedTrip = await TripService.copyTrip(tripId, user.id, customName);
+    const copiedTrip = await TripService.copyTrip(tripId, user.id, {
+      customName,
+      shareToken,
+      userRole: user.role,
+    });
     return NextResponse.json(copiedTrip, { status: 201 });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Failed to copy trip";

@@ -4,42 +4,11 @@ import { cn } from "@/lib/utils";
 import {
   motion,
   useAnimationFrame,
-  useMotionTemplate,
   useMotionValue,
   useSpring,
   useTransform,
-  MotionValue,
 } from "motion/react";
 import { useEffect, useRef } from "react";
-
-// Helper component for linear layers
-function linearLayer({
-  springX,
-  springY,
-  linearColor,
-  opacity,
-  multiplier,
-}: {
-  springX: MotionValue<number>;
-  springY: MotionValue<number>;
-  linearColor: string;
-  opacity: number;
-  multiplier: number;
-}) {
-  const x = useTransform(springX, (val) => val * multiplier);
-  const y = useTransform(springY, (val) => val * multiplier);
-  const background = useMotionTemplate`radial-linear(circle at ${x}px ${y}px, ${linearColor} 0%, transparent 50%)`;
-
-  return (
-    <motion.div
-      className="absolute inset-0"
-      style={{
-        opacity,
-        background,
-      }}
-    />
-  );
-}
 
 interface NoiseBackgroundProps {
   children?: React.ReactNode;
@@ -72,7 +41,6 @@ export const NoiseBackground = ({
 
   // Use spring animation for smooth movement
   const springX = useSpring(x, { stiffness: 100, damping: 30 });
-  const springY = useSpring(y, { stiffness: 100, damping: 30 });
 
   // Transform for top linear strip
   const toplinearX = useTransform(springX, (val) => val * 0.1 - 50);

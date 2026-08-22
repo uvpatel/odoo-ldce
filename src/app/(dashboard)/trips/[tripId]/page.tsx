@@ -3,9 +3,30 @@
 import * as React from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  sortableKeyboardCoordinates,
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { tripKeys, catalogKeys } from "@/lib/query-keys";
-import { tripsApi, type TripDetails } from "@/features/trips/api/trips.api";
+import {
+  tripsApi,
+  type TripDetails,
+  type TripStop,
+} from "@/features/trips/api/trips.api";
 import { apiClient } from "@/lib/api-client";
 import {
   CalendarIcon,
@@ -15,11 +36,11 @@ import {
   RouteIcon,
   SparklesIcon,
   ArrowRightIcon,
-  ClockIcon,
   PlaneIcon,
   AlertCircleIcon,
   PlusIcon,
   Loader2Icon,
+  GripVerticalIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -45,6 +66,13 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import type { City } from "@/features/discover/api/discover.api";
+
+const stopListAccessibility = {
+  screenReaderInstructions: {
+    draggable:
+      "To reorder a destination, press Space or Enter. Use the up and down arrow keys to move it, then press Space or Enter to drop it or Escape to cancel.",
+  },
+};
 
 function formatDate(date: string | null) {
   if (!date) return "—";
@@ -174,8 +202,92 @@ function AddStopDialog({ tripId }: { tripId: string }) {
   );
 }
 
+function SortableStop({
+  stop,
+  index,
+  total,
+  canDrag,
+  showDragHandle,
+}: {
+  stop: TripStop;
+  index: number;
+  total: number;
+  canDrag: boolean;
+  showDragHandle: boolean;
+}) {
+  const {
+    attributes,
+    isDragging,
+    listeners,
+    setActivatorNodeRef,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({
+    id: stop.id,
+    disabled: !canDrag,
+  });
+  const cityName = stop.city?.name ?? "Unknown City";
+
+  return (
+    <div
+      ref={setNodeRef}
+      data-dragging={isDragging}
+      className="relative flex items-center gap-3 rounded-lg border bg-muted/30 p-3 data-[dragging=true]:z-10 data-[dragging=true]:shadow-lg"
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+      }}
+    >
+      {showDragHandle ? (
+        <Button
+          {...attributes}
+          {...listeners}
+          ref={setActivatorNodeRef}
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          className="-ml-1 touch-none cursor-grab text-muted-foreground active:cursor-grabbing"
+          disabled={!canDrag}
+          aria-label={`Reorder ${cityName}, currently position ${index + 1} of ${total}`}
+        >
+          <GripVerticalIcon className="size-4" />
+        </Button>
+      ) : null}
+      <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+        {index + 1}
+      </div>
+      {stop.city?.imageUrl ? (
+        <div
+          className="size-12 shrink-0 rounded-lg border bg-cover bg-center"
+          style={{ backgroundImage: `url(${stop.city.imageUrl})` }}
+        />
+      ) : null}
+      <div className="min-w-0">
+        <p className="line-clamp-1 text-sm font-semibold">{cityName}</p>
+        <p className="text-xs text-muted-foreground">
+          {stop.country?.name}
+          {stop.arrivalDate
+            ? ` · ${formatDate(stop.arrivalDate)}${stop.departureDate ? ` – ${formatDate(stop.departureDate)}` : ""}`
+            : ""}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function TripOverviewPage() {
   const { tripId } = useParams<{ tripId: string }>();
+  const queryClient = useQueryClient();
+  const sortableContextId = React.useId();
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 6 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const { data, isLoading, isError } = useQuery<TripDetails>({
     queryKey: tripKeys.detail(tripId),
@@ -186,11 +298,85 @@ export default function TripOverviewPage() {
   const trip = data?.trip;
   const members = data?.members ?? [];
   const stops = data?.stops ?? [];
+  const stopIds = stops.map((stop) => stop.id);
   const days = data?.days ?? [];
   const budget = data?.budget;
+  const canEdit = data?.permissions.canEdit ?? false;
+  const trackedBudget =
+    budget && (budget.totalBudget > 0 || budget.totalSpent > 0) ? budget : null;
+
+  const reorderStopsMutation = useMutation<
+    TripStop[],
+    Error,
+    string[],
+    { previousTrip: TripDetails | undefined }
+  >({
+    mutationFn: (nextStopIds) =>
+      apiClient.post<TripStop[]>(`/api/trips/${tripId}/stops/reorder`, {
+        stopIds: nextStopIds,
+      }),
+    onMutate: async (nextStopIds) => {
+      const detailKey = tripKeys.detail(tripId);
+      await queryClient.cancelQueries({ queryKey: detailKey, exact: true });
+      const previousTrip = queryClient.getQueryData<TripDetails>(detailKey);
+
+      if (previousTrip && previousTrip.stops.length === nextStopIds.length) {
+        const stopsById = new Map(previousTrip.stops.map((stop) => [stop.id, stop]));
+        const reorderedStops = nextStopIds.flatMap((stopId, position) => {
+          const stop = stopsById.get(stopId);
+          return stop ? [{ ...stop, position }] : [];
+        });
+
+        if (reorderedStops.length === previousTrip.stops.length) {
+          queryClient.setQueryData<TripDetails>(detailKey, {
+            ...previousTrip,
+            stops: reorderedStops,
+          });
+        }
+      }
+
+      return { previousTrip };
+    },
+    onSuccess: (reorderedStops) => {
+      queryClient.setQueryData<TripDetails>(tripKeys.detail(tripId), (currentTrip) =>
+        currentTrip ? { ...currentTrip, stops: reorderedStops } : currentTrip
+      );
+      toast.success("Destination order updated");
+    },
+    onError: (error, _nextStopIds, context) => {
+      if (context?.previousTrip) {
+        queryClient.setQueryData(tripKeys.detail(tripId), context.previousTrip);
+      }
+      toast.error(error.message || "Failed to reorder destinations");
+    },
+    onSettled: () =>
+      queryClient.invalidateQueries({
+        queryKey: tripKeys.detail(tripId),
+        exact: true,
+      }),
+  });
+
+  const handleStopDragEnd = ({ active, over }: DragEndEvent) => {
+    if (
+      !canEdit ||
+      reorderStopsMutation.isPending ||
+      !over ||
+      active.id === over.id
+    ) {
+      return;
+    }
+
+    const oldIndex = stopIds.indexOf(String(active.id));
+    const newIndex = stopIds.indexOf(String(over.id));
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    reorderStopsMutation.mutate(arrayMove(stopIds, oldIndex, newIndex));
+  };
 
   const duration = getTripDuration(trip?.startDate ?? null, trip?.endDate ?? null);
-  const budgetPercent = budget ? Math.min(100, Math.round(budget.percentageUsed)) : 0;
+  const budgetPercent = trackedBudget
+    ? Math.min(100, Math.round(trackedBudget.percentageUsed))
+    : 0;
 
   // Next 4 upcoming itinerary items
   const upcomingItems = days
@@ -287,8 +473,8 @@ export default function TripOverviewPage() {
               <Skeleton className="h-8 w-32" />
             ) : (
               <CardTitle className="text-2xl">
-                {budget
-                  ? `${trip?.currency ?? "USD"} ${budget.totalActual.toLocaleString()} / ${Number(budget.budget?.totalBudget ?? trip?.budgetLimit ?? 0).toLocaleString()}`
+                {trackedBudget
+                  ? `${trackedBudget.currency} ${trackedBudget.totalSpent.toLocaleString()} / ${trackedBudget.totalBudget.toLocaleString()}`
                   : trip?.budgetLimit
                   ? `${trip.currency} 0 / ${Number(trip.budgetLimit).toLocaleString()}`
                   : "No budget set"}
@@ -298,7 +484,7 @@ export default function TripOverviewPage() {
           <CardContent className="text-xs text-muted-foreground">
             {isLoading ? (
               <Skeleton className="h-4 w-36" />
-            ) : budget ? (
+            ) : trackedBudget ? (
               <>
                 <Progress value={budgetPercent} className="h-1 mb-1" />
                 {budgetPercent}% of total budget
@@ -415,10 +601,12 @@ export default function TripOverviewPage() {
                 Destinations & Stops
               </CardTitle>
               <CardDescription className="text-xs">
-                Cities and stops on your route
+                {canEdit && stops.length > 1
+                  ? "Drag destinations to update your route"
+                  : "Cities and stops on your route"}
               </CardDescription>
             </div>
-            <AddStopDialog tripId={tripId} />
+            {canEdit ? <AddStopDialog tripId={tripId} /> : null}
           </CardHeader>
           <CardContent className="space-y-3">
             {isLoading ? (
@@ -429,36 +617,43 @@ export default function TripOverviewPage() {
               <div className="text-center py-6 text-muted-foreground">
                 <MapPinIcon className="size-8 mx-auto mb-2 opacity-30" />
                 <p className="text-xs">No destinations added yet.</p>
-                <p className="text-[11px]">Click &quot;Add Destination&quot; to begin building your route.</p>
+                <p className="text-[11px]">
+                  {canEdit
+                    ? "Click “Add Destination” to begin building your route."
+                    : "This trip does not have any destinations yet."}
+                </p>
               </div>
             ) : (
-              stops.map((stop, i) => (
-                <div
-                  key={stop.id}
-                  className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30"
+              <DndContext
+                id={sortableContextId}
+                accessibility={stopListAccessibility}
+                collisionDetection={closestCenter}
+                sensors={sensors}
+                onDragEnd={handleStopDragEnd}
+              >
+                <SortableContext
+                  items={stopIds}
+                  strategy={verticalListSortingStrategy}
+                  disabled={!canEdit || reorderStopsMutation.isPending}
                 >
-                  <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold text-xs">
-                    {i + 1}
+                  <div className="space-y-3">
+                    {stops.map((stop, index) => (
+                      <SortableStop
+                        key={stop.id}
+                        stop={stop}
+                        index={index}
+                        total={stops.length}
+                        canDrag={
+                          canEdit &&
+                          stops.length > 1 &&
+                          !reorderStopsMutation.isPending
+                        }
+                        showDragHandle={canEdit && stops.length > 1}
+                      />
+                    ))}
                   </div>
-                  {stop.city?.imageUrl ? (
-                    <div
-                      className="size-12 shrink-0 rounded-lg bg-cover bg-center border"
-                      style={{ backgroundImage: `url(${stop.city.imageUrl})` }}
-                    />
-                  ) : null}
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold line-clamp-1">
-                      {stop.city?.name ?? "Unknown City"}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {stop.country?.name}
-                      {stop.arrivalDate
-                        ? ` · ${formatDate(stop.arrivalDate)}${stop.departureDate ? ` – ${formatDate(stop.departureDate)}` : ""}`
-                        : ""}
-                    </p>
-                  </div>
-                </div>
-              ))
+                </SortableContext>
+              </DndContext>
             )}
           </CardContent>
           <div className="p-4 border-t bg-muted/10">

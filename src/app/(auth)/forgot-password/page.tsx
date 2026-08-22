@@ -3,11 +3,12 @@
 import * as React from "react"
 import Link from "next/link"
 import { toast } from "sonner"
-import { ArrowLeftIcon, MailIcon, CheckCircle2Icon } from "lucide-react"
+import { ArrowLeftIcon, CheckCircle2Icon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Field, FieldLabel } from "@/components/ui/field"
+import { authClient } from "@/lib/auth-client"
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = React.useState("")
@@ -18,11 +19,24 @@ export default function ForgotPasswordPage() {
     e.preventDefault()
     if (!email) return
     setIsLoading(true)
-    setTimeout(() => {
-      setIsLoading(false)
+    try {
+      const { error } = await authClient.requestPasswordReset({
+        email,
+        redirectTo: `${window.location.origin}/reset-password`,
+      })
+
+      if (error) {
+        toast.error(error.message || "Unable to send the reset link.")
+        return
+      }
+
       setIsSubmitted(true)
-      toast.success("Password reset instructions sent to your email.")
-    }, 800)
+      toast.success("If that account exists, a reset link is on its way.")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to send the reset link.")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -70,7 +84,7 @@ export default function ForgotPasswordPage() {
         </CardContent>
         <CardFooter className="flex justify-center border-t pt-4">
           <Link
-            href="/sign-in"
+            href="/signin"
             className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
           >
             <ArrowLeftIcon className="size-3.5" />

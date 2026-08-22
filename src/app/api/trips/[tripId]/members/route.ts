@@ -20,18 +20,17 @@ export async function GET(
   try {
     const { tripId } = await params;
     const user = await getCurrentUser();
-
-    const canView = await AuthorizationService.canViewTrip({
-      tripId,
-      userId: user?.id,
-      userRole: user?.role,
-    });
-
-    if (!canView) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const members = await TripRepository.getTripMembers(tripId);
+    const isMember = members.some((member) => member.userId === user.id);
+    const isAdmin = user.role === "admin" || user.role === "super_admin";
+    if (!isMember && !isAdmin) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+
     return NextResponse.json(members);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Failed to fetch members";

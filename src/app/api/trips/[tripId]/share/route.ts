@@ -65,6 +65,9 @@ export async function PATCH(
 
     const validatedData = updateTripShareSchema.parse(updateData);
     const updated = await SharingService.updateShare(user.id, tripId, shareId, validatedData, user.role);
+    if (!updated) {
+      return NextResponse.json({ error: "Share link not found" }, { status: 404 });
+    }
     return NextResponse.json(updated);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Failed to update share link";

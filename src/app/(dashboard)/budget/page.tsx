@@ -5,18 +5,14 @@ import Link from "next/link";
 import { useTrips } from "@/features/trips/hooks/use-trips";
 import {
   WalletCardsIcon,
-  DollarSignIcon,
-  TrendingUpIcon,
   ArrowRightIcon,
   PlusIcon,
-  PieChartIcon,
   PlaneIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Progress } from "@/components/ui/progress";
 import type { Trip } from "@/features/trips/api/trips.api";
 
 export default function BudgetOverviewPage() {
@@ -24,9 +20,11 @@ export default function BudgetOverviewPage() {
   const trips = data?.items ?? [];
 
   const tripsWithBudget = trips.filter((t) => t.budgetLimit && parseFloat(t.budgetLimit) > 0);
-  const totalAllocated = tripsWithBudget.reduce(
-    (acc, t) => acc + (t.budgetLimit ? parseFloat(t.budgetLimit) : 0),
-    0
+  const totalsByCurrency = Object.entries(
+    tripsWithBudget.reduce<Record<string, number>>((totals, trip) => {
+      totals[trip.currency] = (totals[trip.currency] ?? 0) + Number(trip.budgetLimit ?? 0);
+      return totals;
+    }, {})
   );
 
   return (
@@ -60,8 +58,12 @@ export default function BudgetOverviewPage() {
           <Card>
             <CardHeader className="pb-2">
               <CardDescription className="text-xs">Cumulative Budget Limit</CardDescription>
-              <CardTitle className="text-2xl font-bold font-mono">
-                ${totalAllocated.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+              <CardTitle className="text-lg font-bold font-mono leading-relaxed">
+                {totalsByCurrency.length > 0
+                  ? totalsByCurrency
+                      .map(([currency, total]) => `${currency} ${total.toLocaleString()}`)
+                      .join(" · ")
+                  : "—"}
               </CardTitle>
             </CardHeader>
             <CardContent className="text-xs text-muted-foreground">

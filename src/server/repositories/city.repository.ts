@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { cities, countries } from "@/db/schema/catalog";
-import { eq, ilike, and, gte, lte, desc, asc, sql } from "drizzle-orm";
+import { eq, and, gte, lte, desc, asc, sql } from "drizzle-orm";
 import type { CitySearchInput } from "@/lib/validation";
 
 export class CityRepository {
@@ -22,7 +22,7 @@ export class CityRepository {
 
     if (search) {
       conditions.push(
-        sql`(${cities.name} ILIKE ${`%${search}%`} OR ${cities.description} ILIKE ${`%${search}%`})`
+        sql`(${cities.name} ILIKE ${`%${search}%`} OR ${cities.description} ILIKE ${`%${search}%`} OR ${countries.name} ILIKE ${`%${search}%`})`
       );
     }
 

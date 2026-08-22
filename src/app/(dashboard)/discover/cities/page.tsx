@@ -2,15 +2,13 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Building2Icon, MapPinIcon, StarIcon, SearchIcon, BookmarkIcon, ArrowRightIcon, SparklesIcon, FilterIcon } from "lucide-react";
+import { Building2Icon, MapPinIcon, StarIcon, SearchIcon, BookmarkIcon, ArrowRightIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCities, useSavedDestinations, useToggleSaveDestination } from "@/features/discover/hooks/use-discover";
-import type { City } from "@/features/discover/api/discover.api";
 
 function CostIndexDisplay({ costIndex }: { costIndex: number }) {
   const signs = ["$", "$$", "$$$", "$$$$", "$$$$$"];
@@ -22,6 +20,8 @@ export default function DiscoverCitiesPage() {
   const [search, setSearch] = React.useState("");
   const [debouncedSearch, setDebouncedSearch] = React.useState("");
   const [sortBy, setSortBy] = React.useState<"popularity" | "name" | "cost">("popularity");
+  const [region, setRegion] = React.useState("all");
+  const [maxCost, setMaxCost] = React.useState("all");
 
   React.useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 300);
@@ -31,6 +31,9 @@ export default function DiscoverCitiesPage() {
   const { data, isLoading } = useCities({
     search: debouncedSearch || undefined,
     sortBy,
+    sortOrder: sortBy === "cost" || sortBy === "name" ? "asc" : "desc",
+    region: region === "all" ? undefined : region,
+    maxCost: maxCost === "all" ? undefined : Number(maxCost),
     limit: 30,
   });
 
@@ -55,8 +58,8 @@ export default function DiscoverCitiesPage() {
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row items-center gap-3">
-        <div className="relative flex-1 w-full">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_1fr]">
+        <div className="relative w-full">
           <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
             placeholder="Search by city or country name..."
@@ -66,9 +69,32 @@ export default function DiscoverCitiesPage() {
           />
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <Select value={region} onValueChange={(value) => setRegion(value ?? "all")}>
+          <SelectTrigger className="w-full h-10"><SelectValue placeholder="All regions" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All regions</SelectItem>
+            <SelectItem value="Africa">Africa</SelectItem>
+            <SelectItem value="Asia">Asia</SelectItem>
+            <SelectItem value="Europe">Europe</SelectItem>
+            <SelectItem value="Middle East">Middle East</SelectItem>
+            <SelectItem value="North America">North America</SelectItem>
+            <SelectItem value="South America">South America</SelectItem>
+            <SelectItem value="Oceania">Oceania</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={maxCost} onValueChange={(value) => setMaxCost(value ?? "all")}>
+          <SelectTrigger className="w-full h-10"><SelectValue placeholder="Any cost" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Any cost</SelectItem>
+            <SelectItem value="2">Budget · $$</SelectItem>
+            <SelectItem value="3">Moderate · $$$</SelectItem>
+            <SelectItem value="5">All price tiers</SelectItem>
+          </SelectContent>
+        </Select>
+
           <Select value={sortBy} onValueChange={(val) => setSortBy(val as typeof sortBy)}>
-            <SelectTrigger className="w-full sm:w-45 h-10">
+            <SelectTrigger className="w-full h-10">
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
             <SelectContent>
@@ -77,7 +103,6 @@ export default function DiscoverCitiesPage() {
               <SelectItem value="cost">Affordability</SelectItem>
             </SelectContent>
           </Select>
-        </div>
       </div>
 
       {isLoading ? (

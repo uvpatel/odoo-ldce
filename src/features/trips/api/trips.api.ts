@@ -25,6 +25,11 @@ export interface UpdateTripPayload extends Partial<CreateTripPayload> {
   status?: "draft" | "planned" | "ongoing" | "completed" | "cancelled";
 }
 
+export interface CopyTripPayload {
+  name?: string;
+  shareToken?: string;
+}
+
 export const tripsApi = {
   list: (filters?: TripFilters) =>
     apiClient.get<{ items: Trip[]; total: number; page: number; totalPages: number }>(
@@ -44,8 +49,14 @@ export const tripsApi = {
   delete: (tripId: string) =>
     apiClient.delete<{ success: boolean }>(`/api/trips/${tripId}`),
 
-  copy: (tripId: string) =>
-    apiClient.post<Trip>(`/api/trips/${tripId}/copy`),
+  copy: (tripId: string, data?: CopyTripPayload) =>
+    apiClient.post<Trip>(`/api/trips/${tripId}/copy`, data),
+
+  budget: (tripId: string, shareToken?: string) =>
+    apiClient.get<BudgetSummary>(
+      `/api/trips/${tripId}/budget`,
+      shareToken ? { shareToken } : undefined
+    ),
 };
 
 export interface Trip {
@@ -149,27 +160,52 @@ export interface TripMember {
   };
 }
 
-export interface BudgetSummary {
-  budget: {
-    id: string;
-    tripId: string;
-    totalBudget: string;
-    currency: string;
-    transportBudget: string;
-    accommodationBudget: string;
-    activityBudget: string;
-    foodBudget: string;
-    otherBudget: string;
-  } | null;
-  totalEstimated: number;
-  totalActual: number;
+export type ExpenseCategory =
+  | "transport"
+  | "accommodation"
+  | "activity"
+  | "food"
+  | "shopping"
+  | "other";
+
+export interface BudgetCategorySummary {
+  planned: number;
+  spent: number;
   remaining: number;
+}
+
+export interface BudgetSummary {
+  tripId: string;
+  totalBudget: number;
+  currency: string;
+  totalSpent: number;
+  actualSpent: number;
+  estimatedSpent: number;
+  remainingBudget: number;
   percentageUsed: number;
-  categoryBreakdown: {
-    category: string;
-    estimated: number;
-    actual: number;
-  }[];
+  breakdown: Record<ExpenseCategory, BudgetCategorySummary>;
+  expensesCount: number;
+}
+
+export interface Expense {
+  id: string;
+  tripId: string;
+  tripDayId: string | null;
+  itineraryItemId: string | null;
+  category: ExpenseCategory;
+  title: string;
+  description: string | null;
+  amount: string;
+  currency: string;
+  expenseDate: string | null;
+  isEstimated: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ExpenseListResponse {
+  items: Expense[];
+  total: number;
 }
 
 export interface TripDetails {

@@ -1,7 +1,7 @@
 import { db } from "@/db";
 import { tripStops, tripDays, itineraryItems } from "@/db/schema/travel";
-import { cities, countries, activities, activityCategories } from "@/db/schema/catalog";
-import { eq, and, asc, inArray } from "drizzle-orm";
+import { cities, countries, activities } from "@/db/schema/catalog";
+import { eq, and, asc, max } from "drizzle-orm";
 import type {
   CreateTripStopInput,
   UpdateTripStopInput,
@@ -10,6 +10,20 @@ import type {
   CreateItineraryItemInput,
   UpdateItineraryItemInput,
 } from "@/lib/validation";
+
+function assertCompleteOrder(
+  providedIds: string[],
+  existingRows: Array<{ id: string }>,
+  entityName: string
+) {
+  const providedIdSet = new Set(providedIds);
+  const hasDuplicates = providedIdSet.size !== providedIds.length;
+  const hasEveryExistingRow = existingRows.every((row) => providedIdSet.has(row.id));
+
+  if (hasDuplicates || providedIds.length !== existingRows.length || !hasEveryExistingRow) {
+    throw new Error(`Invalid ${entityName} order: IDs must match the trip's current ${entityName}.`);
+  }
+}
 
 export class ItineraryRepository {
   // ==========================================
@@ -50,13 +64,34 @@ export class ItineraryRepository {
       .orderBy(asc(tripStops.position));
   }
 
+  static async findTripStopById(tripId: string, stopId: string) {
+    const results = await db
+      .select()
+      .from(tripStops)
+      .where(and(eq(tripStops.id, stopId), eq(tripStops.tripId, tripId)))
+      .limit(1);
+
+    return results[0] ?? null;
+  }
+
   static async createStop(input: CreateTripStopInput) {
+    let position = input.position ?? 0;
+
+    if (position === 0) {
+      const positionResult = await db
+        .select({ maxPosition: max(tripStops.position) })
+        .from(tripStops)
+        .where(eq(tripStops.tripId, input.tripId));
+      const maxPosition = positionResult[0]?.maxPosition;
+      position = maxPosition === null || maxPosition === undefined ? 0 : maxPosition + 1;
+    }
+
     const newStop = await db
       .insert(tripStops)
       .values({
         tripId: input.tripId,
         cityId: input.cityId,
-        position: input.position ?? 0,
+        position,
         arrivalDate: input.arrivalDate ?? null,
         departureDate: input.departureDate ?? null,
         notes: input.notes ?? null,
@@ -66,7 +101,7 @@ export class ItineraryRepository {
     return newStop[0];
   }
 
-  static async updateStop(stopId: string, input: UpdateTripStopInput) {
+  static async updateStop(tripId: string, stopId: string, input: UpdateTripStopInput) {
     const updateValues: Record<string, unknown> = {
       updatedAt: new Date(),
     };
@@ -79,27 +114,46 @@ export class ItineraryRepository {
     const updated = await db
       .update(tripStops)
       .set(updateValues)
-      .where(eq(tripStops.id, stopId))
+      .where(and(eq(tripStops.id, stopId), eq(tripStops.tripId, tripId)))
       .returning();
 
     return updated[0] ?? null;
   }
 
-  static async deleteStop(stopId: string) {
-    const deleted = await db.delete(tripStops).where(eq(tripStops.id, stopId)).returning();
+  static async deleteStop(tripId: string, stopId: string) {
+    const deleted = await db
+      .delete(tripStops)
+      .where(and(eq(tripStops.id, stopId), eq(tripStops.tripId, tripId)))
+      .returning();
     return deleted[0] ?? null;
   }
 
   static async reorderStops(tripId: string, stopIds: string[]) {
-    // Reorder using sequential updates with position offset to avoid unique constraint collisions
-    const updates = stopIds.map((stopId, index) =>
+    const existingStops = await db
+      .select({ id: tripStops.id, position: tripStops.position })
+      .from(tripStops)
+      .where(eq(tripStops.tripId, tripId));
+
+    assertCompleteOrder(stopIds, existingStops, "stops");
+
+    const minimumPosition = Math.min(0, ...existingStops.map((stop) => stop.position));
+    const temporaryStart = minimumPosition - stopIds.length;
+    const updatedAt = new Date();
+    const temporaryUpdates = stopIds.map((stopId, index) =>
       db
         .update(tripStops)
-        .set({ position: index, updatedAt: new Date() })
+        .set({ position: temporaryStart + index, updatedAt })
         .where(and(eq(tripStops.id, stopId), eq(tripStops.tripId, tripId)))
     );
+    const finalUpdates = stopIds.map((stopId, index) =>
+      db
+        .update(tripStops)
+        .set({ position: index, updatedAt })
+        .where(and(eq(tripStops.id, stopId), eq(tripStops.tripId, tripId)))
+    );
+    const updates = [...temporaryUpdates, ...finalUpdates];
 
-    await Promise.all(updates);
+    await db.batch(updates as [typeof updates[number], ...Array<typeof updates[number]>]);
     return this.findTripStops(tripId);
   }
 
@@ -115,8 +169,12 @@ export class ItineraryRepository {
       .orderBy(asc(tripDays.dayNumber));
   }
 
-  static async findTripDayById(dayId: string) {
-    const results = await db.select().from(tripDays).where(eq(tripDays.id, dayId)).limit(1);
+  static async findTripDayById(tripId: string, dayId: string) {
+    const results = await db
+      .select()
+      .from(tripDays)
+      .where(and(eq(tripDays.id, dayId), eq(tripDays.tripId, tripId)))
+      .limit(1);
     return results[0] ?? null;
   }
 
@@ -136,7 +194,7 @@ export class ItineraryRepository {
     return newDay[0];
   }
 
-  static async updateDay(dayId: string, input: UpdateTripDayInput) {
+  static async updateDay(tripId: string, dayId: string, input: UpdateTripDayInput) {
     const updateValues: Record<string, unknown> = {
       updatedAt: new Date(),
     };
@@ -148,14 +206,17 @@ export class ItineraryRepository {
     const updated = await db
       .update(tripDays)
       .set(updateValues)
-      .where(eq(tripDays.id, dayId))
+      .where(and(eq(tripDays.id, dayId), eq(tripDays.tripId, tripId)))
       .returning();
 
     return updated[0] ?? null;
   }
 
-  static async deleteDay(dayId: string) {
-    const deleted = await db.delete(tripDays).where(eq(tripDays.id, dayId)).returning();
+  static async deleteDay(tripId: string, dayId: string) {
+    const deleted = await db
+      .delete(tripDays)
+      .where(and(eq(tripDays.id, dayId), eq(tripDays.tripId, tripId)))
+      .returning();
     return deleted[0] ?? null;
   }
 
@@ -196,6 +257,16 @@ export class ItineraryRepository {
       .orderBy(asc(itineraryItems.position));
   }
 
+  static async findItineraryItemById(tripId: string, itemId: string) {
+    const results = await db
+      .select()
+      .from(itineraryItems)
+      .where(and(eq(itineraryItems.id, itemId), eq(itineraryItems.tripId, tripId)))
+      .limit(1);
+
+    return results[0] ?? null;
+  }
+
   static async findItineraryItemsByTrip(tripId: string) {
     return db
       .select({
@@ -230,6 +301,22 @@ export class ItineraryRepository {
   }
 
   static async createItineraryItem(input: CreateItineraryItemInput) {
+    let position = input.position ?? 0;
+
+    if (position === 0) {
+      const positionResult = await db
+        .select({ maxPosition: max(itineraryItems.position) })
+        .from(itineraryItems)
+        .where(
+          and(
+            eq(itineraryItems.tripId, input.tripId),
+            eq(itineraryItems.tripDayId, input.tripDayId)
+          )
+        );
+      const maxPosition = positionResult[0]?.maxPosition;
+      position = maxPosition === null || maxPosition === undefined ? 0 : maxPosition + 1;
+    }
+
     const newItem = await db
       .insert(itineraryItems)
       .values({
@@ -244,7 +331,7 @@ export class ItineraryRepository {
         endTime: input.endTime ?? null,
         estimatedCost: input.estimatedCost ? String(input.estimatedCost) : "0.00",
         currency: input.currency ?? "USD",
-        position: input.position ?? 0,
+        position,
         notes: input.notes ?? null,
       })
       .returning();
@@ -252,7 +339,11 @@ export class ItineraryRepository {
     return newItem[0];
   }
 
-  static async updateItineraryItem(itemId: string, input: UpdateItineraryItemInput) {
+  static async updateItineraryItem(
+    tripId: string,
+    itemId: string,
+    input: UpdateItineraryItemInput
+  ) {
     const updateValues: Record<string, unknown> = {
       updatedAt: new Date(),
     };
@@ -272,26 +363,63 @@ export class ItineraryRepository {
     const updated = await db
       .update(itineraryItems)
       .set(updateValues)
-      .where(eq(itineraryItems.id, itemId))
+      .where(and(eq(itineraryItems.id, itemId), eq(itineraryItems.tripId, tripId)))
       .returning();
 
     return updated[0] ?? null;
   }
 
-  static async deleteItineraryItem(itemId: string) {
-    const deleted = await db.delete(itineraryItems).where(eq(itineraryItems.id, itemId)).returning();
+  static async deleteItineraryItem(tripId: string, itemId: string) {
+    const deleted = await db
+      .delete(itineraryItems)
+      .where(and(eq(itineraryItems.id, itemId), eq(itineraryItems.tripId, tripId)))
+      .returning();
     return deleted[0] ?? null;
   }
 
-  static async reorderItineraryItems(tripDayId: string, itemIds: string[]) {
-    const updates = itemIds.map((itemId, index) =>
+  static async reorderItineraryItems(tripId: string, tripDayId: string, itemIds: string[]) {
+    const existingItems = await db
+      .select({ id: itineraryItems.id, position: itineraryItems.position })
+      .from(itineraryItems)
+      .where(
+        and(
+          eq(itineraryItems.tripId, tripId),
+          eq(itineraryItems.tripDayId, tripDayId)
+        )
+      );
+
+    assertCompleteOrder(itemIds, existingItems, "itinerary items");
+
+    const minimumPosition = Math.min(0, ...existingItems.map((item) => item.position));
+    const temporaryStart = minimumPosition - itemIds.length;
+    const updatedAt = new Date();
+    const temporaryUpdates = itemIds.map((itemId, index) =>
       db
         .update(itineraryItems)
-        .set({ position: index, updatedAt: new Date() })
-        .where(and(eq(itineraryItems.id, itemId), eq(itineraryItems.tripDayId, tripDayId)))
+        .set({ position: temporaryStart + index, updatedAt })
+        .where(
+          and(
+            eq(itineraryItems.id, itemId),
+            eq(itineraryItems.tripId, tripId),
+            eq(itineraryItems.tripDayId, tripDayId)
+          )
+        )
     );
+    const finalUpdates = itemIds.map((itemId, index) =>
+      db
+        .update(itineraryItems)
+        .set({ position: index, updatedAt })
+        .where(
+          and(
+            eq(itineraryItems.id, itemId),
+            eq(itineraryItems.tripId, tripId),
+            eq(itineraryItems.tripDayId, tripDayId)
+          )
+        )
+    );
+    const updates = [...temporaryUpdates, ...finalUpdates];
 
-    await Promise.all(updates);
+    await db.batch(updates as [typeof updates[number], ...Array<typeof updates[number]>]);
     return this.findItineraryItemsByDay(tripDayId);
   }
 

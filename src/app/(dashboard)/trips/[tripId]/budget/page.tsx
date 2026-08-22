@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -15,6 +15,7 @@ import {
   Loader2Icon,
   TrendingUpIcon,
   BarChart3Icon,
+  CalendarDaysIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,31 +39,24 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { tripKeys } from "@/lib/query-keys";
 import { apiClient } from "@/lib/api-client";
-import type { TripDetails } from "@/features/trips/api/trips.api";
-
-interface Expense {
-  id: string;
-  title: string;
-  category: string;
-  amount: string;
-  currency: string;
-  expenseDate: string | null;
-  notes: string | null;
-  isEstimated: boolean;
-  createdAt: string;
-  paidBy: {
-    id: string;
-    name: string;
-    image: string | null;
-  } | null;
-}
+import {
+  tripsApi,
+  type BudgetCategorySummary,
+  type BudgetSummary,
+  type ExpenseCategory,
+  type ExpenseListResponse,
+  type TripDetails,
+} from "@/features/trips/api/trips.api";
 
 const addExpenseSchema = z.object({
-  title: z.string().min(1, "Description is required"),
-  amount: z.string().min(1, "Amount is required"),
+  title: z.string().trim().min(1, "Description is required"),
+  amount: z.string().refine(
+    (value) => Number.isFinite(Number(value)) && Number(value) > 0,
+    "Amount must be greater than 0"
+  ),
   category: z.enum(["transport", "accommodation", "activity", "food", "shopping", "other"]),
   expenseDate: z.string().optional(),
-  notes: z.string().optional(),
+  description: z.string().trim().max(1000, "Notes are too long").optional(),
 });
 type AddExpenseValues = z.infer<typeof addExpenseSchema>;
 
@@ -88,31 +82,45 @@ export default function TripBudgetPage() {
   const { tripId } = useParams<{ tripId: string }>();
   const queryClient = useQueryClient();
 
+  const { data: budget, isLoading: budgetLoading } = useQuery<BudgetSummary>({
+    queryKey: tripKeys.budget(tripId),
+    queryFn: () => tripsApi.budget(tripId),
+    enabled: !!tripId,
+  });
+
+  const { data: expenseData, isLoading: expensesLoading } = useQuery<ExpenseListResponse>({
+    queryKey: tripKeys.expenses(tripId),
+    queryFn: () => apiClient.get(`/api/trips/${tripId}/expenses`),
+    enabled: !!tripId,
+  });
+
   const { data: tripData, isLoading: tripLoading } = useQuery<TripDetails>({
     queryKey: tripKeys.detail(tripId),
     queryFn: () => apiClient.get(`/api/trips/${tripId}`),
     enabled: !!tripId,
   });
 
-  const { data: expenseData, isLoading: expensesLoading } = useQuery<{
-    items: Expense[];
-    total: number;
-  }>({
-    queryKey: tripKeys.expenses(tripId),
-    queryFn: () => apiClient.get(`/api/trips/${tripId}/expenses`),
-    enabled: !!tripId,
-  });
-
-  const isLoading = tripLoading || expensesLoading;
-  const trip = tripData?.trip;
-  const budget = tripData?.budget;
+  const isLoading = budgetLoading || expensesLoading || tripLoading;
+  const canManageBudget = tripData?.permissions.canManageBudget === true;
   const expenses = expenseData?.items ?? [];
+  const totalBudget = budget?.totalBudget ?? 0;
+  const totalSpent = budget?.totalSpent ?? 0;
+  const remaining = budget?.remainingBudget ?? totalBudget;
+  const percentUsed = budget?.percentageUsed ?? 0;
+  const currency = budget?.currency ?? "USD";
+  const tripDays = tripData?.days.length ?? 0;
+  const averagePerDay = tripDays > 0 ? totalSpent / tripDays : 0;
+  const categoryBreakdown = budget
+    ? (Object.entries(budget.breakdown) as [ExpenseCategory, BudgetCategorySummary][]).filter(
+        ([, value]) => value.planned > 0 || value.spent > 0
+      )
+    : [];
 
   const {
     register,
     handleSubmit,
     setValue,
-    watch,
+    control,
     reset,
     formState: { errors },
   } = useForm<AddExpenseValues>({
@@ -120,16 +128,22 @@ export default function TripBudgetPage() {
     defaultValues: { category: "food", amount: "" },
   });
 
-  const selectedCategory = watch("category");
+  const selectedCategory = useWatch({ control, name: "category" });
 
   const addExpenseMutation = useMutation({
     mutationFn: (data: AddExpenseValues) =>
       apiClient.post(`/api/trips/${tripId}/expenses`, {
-        ...data,
-        amount: parseFloat(data.amount),
+        title: data.title.trim(),
+        amount: Number(data.amount),
+        category: data.category,
+        description: data.description?.trim() || null,
+        expenseDate: data.expenseDate || null,
+        currency,
+        isEstimated: false,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: tripKeys.detail(tripId) });
+      queryClient.invalidateQueries({ queryKey: tripKeys.budget(tripId) });
       queryClient.invalidateQueries({ queryKey: tripKeys.expenses(tripId) });
       toast.success("Expense logged!");
       reset();
@@ -142,23 +156,18 @@ export default function TripBudgetPage() {
       apiClient.delete(`/api/trips/${tripId}/expenses/${expenseId}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: tripKeys.detail(tripId) });
+      queryClient.invalidateQueries({ queryKey: tripKeys.budget(tripId) });
       queryClient.invalidateQueries({ queryKey: tripKeys.expenses(tripId) });
       toast.info("Expense removed.");
     },
     onError: (e: Error) => toast.error(e.message || "Failed to delete expense"),
   });
 
-  const totalBudget = Number(budget?.budget?.totalBudget ?? trip?.budgetLimit ?? 0);
-  const totalSpent = budget?.totalActual ?? 0;
-  const remaining = budget?.remaining ?? totalBudget;
-  const percentUsed = budget?.percentageUsed ?? 0;
-  const currency = trip?.currency ?? "USD";
-
   if (isLoading) {
     return (
       <div className="space-y-6 max-w-6xl mx-auto">
-        <div className="grid gap-4 md:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, i) => (
+        <div className="grid gap-4 md:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-24 w-full rounded-xl" />
           ))}
         </div>
@@ -170,7 +179,7 @@ export default function TripBudgetPage() {
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
       {/* Budget summary cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card className="border-border/80">
           <CardHeader className="pb-2">
             <CardDescription className="text-xs flex items-center gap-1.5">
@@ -221,10 +230,25 @@ export default function TripBudgetPage() {
             {remaining >= 0 ? "Available to spend" : "Over budget"}
           </CardContent>
         </Card>
+
+        <Card className="border-border/80">
+          <CardHeader className="pb-2">
+            <CardDescription className="flex items-center gap-1.5 text-xs">
+              <CalendarDaysIcon className="size-3.5 text-primary" />
+              Average per Day
+            </CardDescription>
+            <CardTitle className="text-2xl font-bold tabular-nums">
+              {currency} {averagePerDay.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-xs text-muted-foreground">
+            {tripDays > 0 ? `Across ${tripDays} planned day${tripDays === 1 ? "" : "s"}` : "Add trip dates to calculate"}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Category Breakdown + Add Expense */}
-      {budget?.categoryBreakdown && budget.categoryBreakdown.length > 0 && (
+      {categoryBreakdown.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="text-sm flex items-center gap-2">
@@ -234,20 +258,20 @@ export default function TripBudgetPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {budget.categoryBreakdown.map((cat) => {
-                const pct = totalSpent > 0 ? (cat.actual / totalSpent) * 100 : 0;
+              {categoryBreakdown.map(([category, summary]) => {
+                const pct = totalSpent > 0 ? (summary.spent / totalSpent) * 100 : 0;
                 return (
-                  <div key={cat.category} className="flex items-center gap-3">
+                  <div key={category} className="flex items-center gap-3">
                     <span
                       className={`text-[10px] font-medium px-1.5 py-0.5 rounded capitalize w-28 shrink-0 text-center ${
-                        CATEGORY_COLORS[cat.category] ?? CATEGORY_COLORS.other
+                        CATEGORY_COLORS[category] ?? CATEGORY_COLORS.other
                       }`}
                     >
-                      {CATEGORY_LABELS[cat.category] ?? cat.category}
+                      {CATEGORY_LABELS[category] ?? category}
                     </span>
                     <Progress value={pct} className="flex-1 h-1.5" />
                     <span className="text-xs font-mono font-semibold w-20 text-right shrink-0">
-                      {currency} {cat.actual.toLocaleString()}
+                      {currency} {summary.spent.toLocaleString()}
                     </span>
                   </div>
                 );
@@ -269,7 +293,7 @@ export default function TripBudgetPage() {
                 </CardDescription>
               </div>
               <Badge variant="secondary" className="text-xs">
-                {expenses.length} transactions
+                {expenseData?.total ?? expenses.length} transactions
               </Badge>
             </CardHeader>
             <CardContent className="p-0 divide-y">
@@ -297,7 +321,7 @@ export default function TripBudgetPage() {
                         </span>
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        {expense.paidBy ? `Paid by ${expense.paidBy.name}` : "No payer recorded"}
+                        {expense.isEstimated ? "Estimated" : "Actual expense"}
                         {expense.expenseDate
                           ? ` · ${new Date(expense.expenseDate).toLocaleDateString()}`
                           : ""}
@@ -307,7 +331,7 @@ export default function TripBudgetPage() {
                       <span className="text-sm font-bold font-mono text-foreground">
                         {expense.currency} {Number(expense.amount).toFixed(2)}
                       </span>
-                      <Button
+                      {canManageBudget ? <Button
                         variant="ghost"
                         size="icon-xs"
                         onClick={() => deleteExpenseMutation.mutate(expense.id)}
@@ -319,7 +343,7 @@ export default function TripBudgetPage() {
                         ) : (
                           <Trash2Icon className="size-3.5" />
                         )}
-                      </Button>
+                      </Button> : null}
                     </div>
                   </div>
                 ))
@@ -329,7 +353,7 @@ export default function TripBudgetPage() {
         </div>
 
         {/* Add expense form */}
-        <div>
+        {canManageBudget ? <div>
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
@@ -397,6 +421,18 @@ export default function TripBudgetPage() {
                   <Input id="expenseDate" type="date" {...register("expenseDate")} />
                 </div>
 
+                <div className="space-y-1.5">
+                  <Label htmlFor="expenseDescription">Notes</Label>
+                  <Input
+                    id="expenseDescription"
+                    placeholder="Optional details"
+                    {...register("description")}
+                  />
+                  {errors.description && (
+                    <p className="text-xs text-destructive">{errors.description.message}</p>
+                  )}
+                </div>
+
                 <Button
                   type="submit"
                   className="w-full gap-2"
@@ -412,7 +448,17 @@ export default function TripBudgetPage() {
               </form>
             </CardContent>
           </Card>
-        </div>
+        </div> : (
+          <Card className="border-dashed">
+            <CardContent className="py-10 text-center">
+              <WalletCardsIcon className="mx-auto mb-3 size-9 text-muted-foreground/35" />
+              <p className="text-sm font-semibold">View-only budget</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Only the trip owner and editors can add or remove expenses.
+              </p>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

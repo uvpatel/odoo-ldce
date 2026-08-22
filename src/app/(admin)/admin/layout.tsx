@@ -1,5 +1,5 @@
 import * as React from "react"
-import { requireUser } from "@/lib/auth/session"
+import { requireRole } from "@/lib/auth/session"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
@@ -9,7 +9,7 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode
 }) {
-  const { user } = await requireUser()
+  const { user } = await requireRole("admin")
 
   return (
     <SidebarProvider

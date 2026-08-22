@@ -10,19 +10,20 @@ import {
   PlusIcon,
   CalendarIcon,
   WalletCardsIcon,
-  TrendingUpIcon,
   MapPinIcon,
   ArrowRightIcon,
   CheckCircleIcon,
   ClockIcon,
   SparklesIcon,
+  CompassIcon,
+  RouteIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface DashboardData {
+  user: { name: string };
   stats: {
     totalTrips: number;
     activeTrips: number;
@@ -58,6 +59,13 @@ interface DashboardData {
     currency: string;
     tripName: string;
     tripId: string;
+  }>;
+  recommendedCities: Array<{
+    id: string;
+    name: string;
+    imageUrl: string | null;
+    costIndex: number;
+    country: { name: string; iso2: string; region: string };
   }>;
 }
 
@@ -109,27 +117,47 @@ export default function DashboardPage() {
   const recentTrips = data?.recentTrips ?? [];
   const upcomingTrips = data?.upcomingTrips ?? [];
   const recentExpenses = data?.recentExpenses ?? [];
+  const recommendedCities = data?.recommendedCities ?? [];
+  const nextTrip = upcomingTrips[0];
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-4 lg:p-6">
-      {/* Page header */}
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <SparklesIcon className="size-6 text-primary" />
-            Dashboard
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Welcome back! Here&apos;s an overview of your travel plans.
-          </p>
+      {/* Journey-board hero */}
+      <section className="relative overflow-hidden rounded-3xl bg-sidebar px-5 py-6 text-sidebar-foreground shadow-lg sm:px-7 sm:py-8">
+        <div className="absolute -right-20 -top-24 size-72 rounded-full border border-white/10" />
+        <div className="absolute -right-5 -top-10 size-44 rounded-full border border-white/10" />
+        <div className="relative grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
+          <div className="max-w-2xl">
+            <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-sidebar-primary">
+              <SparklesIcon className="size-3.5" /> Your journey board
+            </p>
+            <h1 className="font-serif text-3xl leading-tight sm:text-4xl">
+              {data?.user.name ? `Where to next, ${data.user.name.split(" ")[0]}?` : "Where to next?"}
+            </h1>
+            <p className="mt-2 max-w-xl text-sm text-sidebar-foreground/70">
+              Shape each stop, keep the budget honest, and turn a loose idea into a day-by-day route.
+            </p>
+          </div>
+          <Button asChild size="lg" className="w-fit bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90">
+            <Link href="/trips/new"><PlusIcon />Plan a new trip</Link>
+          </Button>
         </div>
-        <Button size="sm" className="gap-1.5">
-          <Link href="/trips/new">
-            <PlusIcon className="size-4" />
-            New Trip
-          </Link>
-        </Button>
-      </div>
+
+        <div className="relative mt-6 flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3 backdrop-blur-sm">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-sidebar-primary text-sidebar-primary-foreground">
+            <RouteIcon className="size-4" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] uppercase tracking-[0.14em] text-sidebar-foreground/55">Next departure</p>
+            <p className="truncate text-sm font-semibold">{nextTrip?.name ?? "Your route is wide open"}</p>
+          </div>
+          <span className="shrink-0 text-xs text-sidebar-foreground/65">
+            {nextTrip?.startDate
+              ? new Date(nextTrip.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+              : "Choose dates when ready"}
+          </span>
+        </div>
+      </section>
 
       {/* Stats row */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -352,6 +380,32 @@ export default function DashboardPage() {
           </Card>
         </div>
       </div>
+
+      <section className="space-y-4">
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <h2 className="flex items-center gap-2 text-base font-semibold"><CompassIcon className="size-4 text-primary" />Routes worth considering</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">Popular cities to spark the next itinerary.</p>
+          </div>
+          <Button asChild variant="ghost" size="sm"><Link href="/discover/cities">Explore all<ArrowRightIcon /></Link></Button>
+        </div>
+        {isLoading ? (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{Array.from({ length: 4 }).map((_, index) => <Skeleton key={index} className="h-40 rounded-2xl" />)}</div>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {recommendedCities.map((city) => (
+              <Link key={city.id} href={`/discover/cities/${city.id}`} className="group relative min-h-40 overflow-hidden rounded-2xl border bg-card shadow-sm">
+                {city.imageUrl ? <div className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-105 motion-reduce:transform-none" style={{ backgroundImage: `url(${city.imageUrl})` }} /> : <div className="absolute inset-0 bg-linear-to-br from-primary/30 via-primary/10 to-accent" />}
+                <div className="absolute inset-0 bg-linear-to-t from-slate-950/90 via-slate-950/20 to-transparent" />
+                <div className="absolute inset-x-0 bottom-0 p-4 text-white">
+                  <p className="font-serif text-xl leading-none">{city.name}</p>
+                  <p className="mt-1 text-[11px] text-white/70">{city.country.name} · {"$".repeat(Math.max(1, Math.min(city.costIndex, 5)))}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

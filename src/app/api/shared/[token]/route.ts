@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SharingService } from "@/server/services/sharing.service";
-import { TripService } from "@/server/services/trip.service";
 import { ItineraryRepository } from "@/server/repositories/itinerary.repository";
 
 export async function GET(

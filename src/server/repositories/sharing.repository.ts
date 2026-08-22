@@ -2,7 +2,7 @@ import { db } from "@/db";
 import { tripShares } from "@/db/schema/social";
 import { trips } from "@/db/schema/travel";
 import { user } from "@/db/schema/auth";
-import { eq, and, isNull, gt, sql } from "drizzle-orm";
+import { eq, and, isNull, sql } from "drizzle-orm";
 import type { CreateTripShareInput, UpdateTripShareInput } from "@/lib/validation";
 import crypto from "crypto";
 
@@ -76,7 +76,7 @@ export class SharingRepository {
       .where(eq(tripShares.tripId, tripId));
   }
 
-  static async updateShare(shareId: string, input: UpdateTripShareInput) {
+  static async updateShare(tripId: string, shareId: string, input: UpdateTripShareInput) {
     const updateValues: Record<string, unknown> = {
       updatedAt: new Date(),
     };
@@ -88,14 +88,17 @@ export class SharingRepository {
     const updated = await db
       .update(tripShares)
       .set(updateValues)
-      .where(eq(tripShares.id, shareId))
+      .where(and(eq(tripShares.id, shareId), eq(tripShares.tripId, tripId)))
       .returning();
 
     return updated[0] ?? null;
   }
 
-  static async deleteShare(shareId: string) {
-    const deleted = await db.delete(tripShares).where(eq(tripShares.id, shareId)).returning();
+  static async deleteShare(tripId: string, shareId: string) {
+    const deleted = await db
+      .delete(tripShares)
+      .where(and(eq(tripShares.id, shareId), eq(tripShares.tripId, tripId)))
+      .returning();
     return deleted[0] ?? null;
   }
 }

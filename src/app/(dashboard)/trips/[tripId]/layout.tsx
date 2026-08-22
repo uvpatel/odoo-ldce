@@ -18,7 +18,6 @@ import {
   MapPinIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -31,8 +30,10 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function TripDetailLayout({
   children,
+  modal,
 }: {
   children: React.ReactNode;
+  modal: React.ReactNode;
 }) {
   const pathname = usePathname();
   const params = useParams();
@@ -179,6 +180,7 @@ export default function TripDetailLayout({
       </div>
 
       <div className="flex-1 p-4 md:p-6 lg:p-8">{children}</div>
+      {modal}
     </div>
   );
 }

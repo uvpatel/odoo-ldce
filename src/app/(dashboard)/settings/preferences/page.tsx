@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { SlidersIcon, SaveIcon, Loader2Icon } from "lucide-react";
+import { SaveIcon, Loader2Icon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -27,22 +27,17 @@ export default function PreferencesSettingsPage() {
     queryFn: () => apiClient.get("/api/users/me/preferences"),
   });
 
-  const [currency, setCurrency] = React.useState("USD");
-  const [language, setLanguage] = React.useState("en");
-  const [timezone, setTimezone] = React.useState("UTC");
-
-  React.useEffect(() => {
-    if (data) {
-      if (data.currency) setCurrency(data.currency);
-      if (data.language) setLanguage(data.language);
-      if (data.timezone) setTimezone(data.timezone);
-    }
-  }, [data]);
+  const [draft, setDraft] = React.useState<Partial<PreferencesData>>({});
+  const currency = draft.currency ?? data?.currency ?? "USD";
+  const language = draft.language ?? data?.language ?? "en";
+  const timezone = draft.timezone ?? data?.timezone ?? "UTC";
 
   const updateMutation = useMutation({
     mutationFn: (values: Partial<PreferencesData>) =>
-      apiClient.patch("/api/users/me/preferences", values),
-    onSuccess: () => {
+      apiClient.patch<PreferencesData>("/api/users/me/preferences", values),
+    onSuccess: (updatedPreferences) => {
+      queryClient.setQueryData(userKeys.preferences, updatedPreferences);
+      setDraft({});
       queryClient.invalidateQueries({ queryKey: userKeys.preferences });
       queryClient.invalidateQueries({ queryKey: userKeys.profile });
       toast.success("Preferences updated successfully!");
@@ -87,7 +82,12 @@ export default function PreferencesSettingsPage() {
         <form onSubmit={handleSave} className="space-y-5 max-w-xl">
           <div className="space-y-1.5">
             <Label htmlFor="currency">Default Currency</Label>
-            <Select value={currency} onValueChange={(val) => setCurrency(val ?? "USD")}>
+            <Select
+              value={currency}
+              onValueChange={(val) =>
+                setDraft((current) => ({ ...current, currency: val ?? "USD" }))
+              }
+            >
               <SelectTrigger id="currency">
                 <SelectValue placeholder="Currency" />
               </SelectTrigger>
@@ -106,7 +106,12 @@ export default function PreferencesSettingsPage() {
 
           <div className="space-y-1.5">
             <Label htmlFor="language">Language</Label>
-            <Select value={language} onValueChange={(val) => setLanguage(val ?? "en")}>
+            <Select
+              value={language}
+              onValueChange={(val) =>
+                setDraft((current) => ({ ...current, language: val ?? "en" }))
+              }
+            >
               <SelectTrigger id="language">
                 <SelectValue placeholder="Language" />
               </SelectTrigger>
@@ -122,7 +127,12 @@ export default function PreferencesSettingsPage() {
 
           <div className="space-y-1.5">
             <Label htmlFor="timezone">Preferred Timezone</Label>
-            <Select value={timezone} onValueChange={(val) => setTimezone(val ?? "UTC")}>
+            <Select
+              value={timezone}
+              onValueChange={(val) =>
+                setDraft((current) => ({ ...current, timezone: val ?? "UTC" }))
+              }
+            >
               <SelectTrigger id="timezone">
                 <SelectValue placeholder="Timezone" />
               </SelectTrigger>

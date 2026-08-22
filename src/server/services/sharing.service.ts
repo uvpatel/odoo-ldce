@@ -38,7 +38,7 @@ export class SharingService {
     if (!canManage) {
       throw new Error("Unauthorized: Cannot update share link.");
     }
-    return SharingRepository.updateShare(shareId, input);
+    return SharingRepository.updateShare(tripId, shareId, input);
   }
 
   static async revokeShare(
@@ -51,6 +51,6 @@ export class SharingService {
     if (!canManage) {
       throw new Error("Unauthorized: Cannot revoke share link.");
     }
-    return SharingRepository.updateShare(shareId, { isActive: false });
+    return SharingRepository.updateShare(tripId, shareId, { isActive: false });
   }
 }

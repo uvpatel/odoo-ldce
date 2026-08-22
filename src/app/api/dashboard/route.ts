@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { TripService } from "@/server/services/trip.service";
+import { CityRepository } from "@/server/repositories/city.repository";
 import { db } from "@/db";
 import { trips } from "@/db/schema/travel";
-import { tripBudgets, expenses } from "@/db/schema/budget";
+import { expenses } from "@/db/schema/budget";
 import { eq, and, isNull, sql, desc, gte } from "drizzle-orm";
 
 export async function GET() {
@@ -21,6 +22,7 @@ export async function GET() {
       tripStats,
       upcomingTrips,
       recentExpenses,
+      recommendedCities,
     ] = await Promise.all([
       // Recent trips
       TripService.getUserTrips(user.id, { page: 1, limit: 6, sortBy: "createdAt", sortOrder: "desc" }),
@@ -80,6 +82,8 @@ export async function GET() {
         )
         .orderBy(desc(expenses.createdAt))
         .limit(5),
+
+      CityRepository.findPopularCities(4),
     ]);
 
     // Summary stats
@@ -92,6 +96,9 @@ export async function GET() {
       .reduce((acc, s) => acc + Number(s.count), 0);
 
     return NextResponse.json({
+      user: {
+        name: user.name,
+      },
       stats: {
         totalTrips,
         activeTrips,
@@ -101,6 +108,7 @@ export async function GET() {
       recentTrips: recentTrips.items,
       upcomingTrips,
       recentExpenses,
+      recommendedCities,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Failed to fetch dashboard";

@@ -2,7 +2,13 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { tripKeys } from "@/lib/query-keys";
-import { tripsApi, type TripFilters, type CreateTripPayload, type UpdateTripPayload } from "../api/trips.api";
+import {
+  tripsApi,
+  type TripFilters,
+  type CreateTripPayload,
+  type UpdateTripPayload,
+  type CopyTripPayload,
+} from "../api/trips.api";
 import { toast } from "sonner";
 
 // --- LIST TRIPS ---
@@ -76,7 +82,8 @@ export function useCopyTrip() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (tripId: string) => tripsApi.copy(tripId),
+    mutationFn: ({ tripId, ...data }: CopyTripPayload & { tripId: string }) =>
+      tripsApi.copy(tripId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: tripKeys.lists() });
       toast.success("Trip copied to your account!");

@@ -1,7 +1,26 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
+import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
+import {
+  arrayMove,
+  sortableKeyboardCoordinates,
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -15,8 +34,6 @@ import {
   GripVerticalIcon,
   Loader2Icon,
   CalendarIcon,
-  DollarSignIcon,
-  FileTextIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,7 +52,7 @@ import {
 } from "@/components/ui/dialog";
 import { tripKeys } from "@/lib/query-keys";
 import { apiClient } from "@/lib/api-client";
-import type { TripDetails, TripDay, ItineraryItem } from "@/features/trips/api/trips.api";
+import type { TripDetails, ItineraryItem } from "@/features/trips/api/trips.api";
 
 const addItemSchema = z.object({
   type: z.enum(["activity", "transport", "accommodation", "meal", "custom"]),
@@ -46,6 +63,18 @@ const addItemSchema = z.object({
   notes: z.string().optional(),
 });
 type AddItemValues = z.infer<typeof addItemSchema>;
+
+interface ReorderItineraryItemsInput {
+  tripDayId: string;
+  dayNumber: number;
+  itemIds: string[];
+}
+
+interface ReorderItineraryItemsContext {
+  previousTrip: TripDetails | undefined;
+}
+
+const VERTICAL_AXIS_MODIFIERS = [restrictToVerticalAxis];
 
 const TYPE_COLORS: Record<string, string> = {
   activity: "bg-blue-100 text-blue-700 border-blue-200",
@@ -180,15 +209,31 @@ function AddItemDialog({
 function ItineraryItemRow({
   item,
   tripId,
-  dayId,
   currency,
+  canEdit,
+  dragDisabled,
+  reorderPending,
 }: {
   item: ItineraryItem;
   tripId: string;
-  dayId: string;
   currency: string;
+  canEdit: boolean;
+  dragDisabled: boolean;
+  reorderPending: boolean;
 }) {
   const queryClient = useQueryClient();
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: item.id,
+    disabled: !canEdit || dragDisabled,
+  });
 
   const deleteMutation = useMutation({
     mutationFn: () =>
@@ -202,9 +247,37 @@ function ItineraryItemRow({
   });
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-lg border bg-card hover:bg-muted/20 transition-colors group">
+    <div
+      ref={setNodeRef}
+      data-dragging={isDragging}
+      className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border bg-card p-3 transition-[border-color,box-shadow,opacity,transform] hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-sm data-[dragging=true]:z-20 data-[dragging=true]:opacity-70 data-[dragging=true]:shadow-lg group motion-reduce:transform-none"
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+      }}
+    >
+      <Link
+        href={`/trips/${tripId}/itinerary/${item.id}`}
+        className="absolute inset-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        aria-label={`Open ${item.title}`}
+      />
       <div className="flex items-start gap-3">
-        <GripVerticalIcon className="size-4 text-muted-foreground/40 mt-1 cursor-grab hidden sm:block" />
+        {canEdit ? (
+          <Button
+            {...attributes}
+            {...listeners}
+            ref={setActivatorNodeRef}
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            aria-label={`Move ${item.title}`}
+            disabled={dragDisabled}
+            className="relative z-10 mt-0.5 shrink-0 touch-none cursor-grab text-muted-foreground hover:text-foreground active:cursor-grabbing disabled:cursor-not-allowed"
+          >
+            <GripVerticalIcon className="size-3.5" />
+            <span className="sr-only">Drag or use the keyboard to reorder</span>
+          </Button>
+        ) : null}
         <div className="space-y-1">
           <div className="flex items-center gap-2 flex-wrap">
             <span
@@ -238,35 +311,185 @@ function ItineraryItemRow({
             {currency} {Number(item.estimatedCost).toFixed(0)}
           </span>
         )}
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          onClick={() => deleteMutation.mutate()}
-          disabled={deleteMutation.isPending}
-          className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-        >
-          {deleteMutation.isPending ? (
-            <Loader2Icon className="size-3.5 animate-spin" />
-          ) : (
-            <Trash2Icon className="size-3.5" />
-          )}
-        </Button>
+        {canEdit ? (
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            aria-label={`Remove ${item.title}`}
+            onClick={(event) => {
+              event.preventDefault();
+              deleteMutation.mutate();
+            }}
+            disabled={deleteMutation.isPending || reorderPending}
+            className="relative z-10 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+          >
+            {deleteMutation.isPending ? (
+              <Loader2Icon className="size-3.5 animate-spin" />
+            ) : (
+              <Trash2Icon className="size-3.5" />
+            )}
+          </Button>
+        ) : null}
       </div>
     </div>
   );
 }
 
+function SortableDayItems({
+  visibleItems,
+  allItems,
+  tripId,
+  tripDayId,
+  dayNumber,
+  currency,
+  canEdit,
+  reorderPending,
+  onReorder,
+}: {
+  visibleItems: ItineraryItem[];
+  allItems: ItineraryItem[];
+  tripId: string;
+  tripDayId: string;
+  dayNumber: number;
+  currency: string;
+  canEdit: boolean;
+  reorderPending: boolean;
+  onReorder: (input: ReorderItineraryItemsInput) => void;
+}) {
+  const sortableContextId = React.useId();
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 6 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+  const visibleItemIds = React.useMemo(
+    () => visibleItems.map((item) => item.id),
+    [visibleItems]
+  );
+  const canReorder = canEdit && visibleItems.length > 1 && !reorderPending;
+
+  const handleDragEnd = ({ active, over }: DragEndEvent) => {
+    if (!canReorder || !over || active.id === over.id) return;
+
+    const oldIndex = allItems.findIndex((item) => item.id === active.id);
+    const newIndex = allItems.findIndex((item) => item.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+
+    const reorderedItems = arrayMove(allItems, oldIndex, newIndex);
+    onReorder({
+      tripDayId,
+      dayNumber,
+      itemIds: reorderedItems.map((item) => item.id),
+    });
+  };
+
+  return (
+    <DndContext
+      id={sortableContextId}
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      modifiers={VERTICAL_AXIS_MODIFIERS}
+      onDragEnd={handleDragEnd}
+    >
+      <SortableContext
+        items={visibleItemIds}
+        strategy={verticalListSortingStrategy}
+        disabled={!canReorder}
+      >
+        {visibleItems.map((item) => (
+          <ItineraryItemRow
+            key={item.id}
+            item={item}
+            tripId={tripId}
+            currency={currency}
+            canEdit={canEdit}
+            dragDisabled={!canReorder}
+            reorderPending={reorderPending}
+          />
+        ))}
+      </SortableContext>
+    </DndContext>
+  );
+}
+
 export default function TripItineraryPage() {
   const { tripId } = useParams<{ tripId: string }>();
+  const [typeFilter, setTypeFilter] = React.useState("all");
+  const queryClient = useQueryClient();
 
-  const { data, isLoading } = useQuery<TripDetails>({
+  const { data: tripData, isLoading } = useQuery<TripDetails>({
     queryKey: tripKeys.detail(tripId),
     queryFn: () => apiClient.get(`/api/trips/${tripId}`),
     enabled: !!tripId,
   });
 
-  const days = data?.days ?? [];
-  const currency = data?.trip?.currency ?? "USD";
+  const reorderMutation = useMutation<
+    ItineraryItem[],
+    Error,
+    ReorderItineraryItemsInput,
+    ReorderItineraryItemsContext
+  >({
+    mutationFn: ({ tripDayId, itemIds }) =>
+      apiClient.post(`/api/trips/${tripId}/itinerary/reorder`, {
+        tripDayId,
+        itemIds,
+      }),
+    onMutate: async ({ tripDayId, itemIds }) => {
+      const detailQueryKey = tripKeys.detail(tripId);
+      await queryClient.cancelQueries({ queryKey: detailQueryKey });
+
+      const previousTrip = queryClient.getQueryData<TripDetails>(detailQueryKey);
+      queryClient.setQueryData<TripDetails>(detailQueryKey, (currentTrip) => {
+        if (!currentTrip) return currentTrip;
+
+        return {
+          ...currentTrip,
+          days: currentTrip.days.map((day) => {
+            if (day.id !== tripDayId) return day;
+
+            const itemsById = new Map(day.items.map((item) => [item.id, item]));
+            const reorderedItems = itemIds.flatMap((itemId, position) => {
+              const item = itemsById.get(itemId);
+              return item ? [{ ...item, position }] : [];
+            });
+
+            return reorderedItems.length === day.items.length
+              ? { ...day, items: reorderedItems }
+              : day;
+          }),
+        };
+      });
+
+      return { previousTrip };
+    },
+    onSuccess: (_items, { dayNumber }) => {
+      toast.success(`Day ${dayNumber} order updated.`);
+    },
+    onError: (error, _input, context) => {
+      if (context?.previousTrip) {
+        queryClient.setQueryData(tripKeys.detail(tripId), context.previousTrip);
+      }
+      toast.error(error.message || "Failed to reorder itinerary items");
+    },
+    onSettled: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: tripKeys.detail(tripId) }),
+        queryClient.invalidateQueries({ queryKey: tripKeys.itinerary(tripId) }),
+      ]);
+    },
+  });
+
+  const days = tripData?.days ?? [];
+  const currency = tripData?.trip?.currency ?? "USD";
+  const canEdit = tripData?.permissions.canEdit === true;
+
+  const handleReorder = (input: ReorderItineraryItemsInput) => {
+    if (!canEdit || reorderMutation.isPending) return;
+    reorderMutation.mutate(input);
+  };
 
   if (isLoading) {
     return (
@@ -288,10 +511,35 @@ export default function TripItineraryPage() {
             Organize activities day by day with real-time budget sync.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex rounded-lg border bg-muted/30 p-0.5" aria-label="Filter itinerary by type">
+            {["all", "activity", "transport", "accommodation", "meal", "custom"].map((type) => (
+              <Button
+                key={type}
+                type="button"
+                size="sm"
+                variant={typeFilter === type ? "secondary" : "ghost"}
+                className="h-7 px-2 text-[11px] capitalize"
+                onClick={() => setTypeFilter(type)}
+              >
+                {type === "accommodation" ? "Stay" : type}
+              </Button>
+            ))}
+          </div>
           <Badge variant="secondary" className="text-xs">
             {days.length} days · {days.reduce((acc, d) => acc + (d.items?.length ?? 0), 0)} items
           </Badge>
+          {!canEdit && tripData ? (
+            <Badge variant="outline" className="text-xs">
+              View only
+            </Badge>
+          ) : null}
+          {reorderMutation.isPending ? (
+            <Badge variant="outline" className="gap-1 text-xs">
+              <Loader2Icon className="size-3 animate-spin" />
+              Saving order
+            </Badge>
+          ) : null}
         </div>
       </div>
 
@@ -300,12 +548,17 @@ export default function TripItineraryPage() {
           <CalendarIcon className="size-12 text-muted-foreground opacity-30 mb-3" />
           <p className="font-semibold">No itinerary days yet</p>
           <p className="text-xs text-muted-foreground mt-1 max-w-xs">
-            Add destinations and set trip dates to automatically generate day-by-day planning slots.
+            {canEdit
+              ? "Add destinations and set trip dates to generate day-by-day planning slots."
+              : "This trip does not have any itinerary days yet."}
           </p>
         </Card>
       ) : (
         <div className="space-y-5">
           {days.map((day) => {
+            const filteredItems = (day.items ?? []).filter(
+              (item) => typeFilter === "all" || item.type === typeFilter
+            );
             const dayTotal = (day.items ?? []).reduce(
               (acc, item) => acc + Number(item.estimatedCost ?? 0),
               0
@@ -349,33 +602,39 @@ export default function TripItineraryPage() {
                 </CardHeader>
 
                 <CardContent className="p-4 space-y-3">
-                  {(day.items ?? []).length === 0 ? (
+                  {filteredItems.length === 0 ? (
                     <p className="text-xs text-muted-foreground italic py-1">
-                      Nothing scheduled yet — add your first activity!
+                      {typeFilter === "all"
+                        ? "Nothing scheduled yet — add your first activity!"
+                        : `No ${typeFilter} items scheduled for this day.`}
                     </p>
                   ) : (
-                    (day.items ?? []).map((item) => (
-                      <ItineraryItemRow
-                        key={item.id}
-                        item={item}
-                        tripId={tripId}
-                        dayId={day.id}
-                        currency={currency}
-                      />
-                    ))
+                    <SortableDayItems
+                      visibleItems={filteredItems}
+                      allItems={day.items ?? []}
+                      tripId={tripId}
+                      tripDayId={day.id}
+                      dayNumber={day.dayNumber}
+                      currency={currency}
+                      canEdit={canEdit}
+                      reorderPending={reorderMutation.isPending}
+                      onReorder={handleReorder}
+                    />
                   )}
 
-                  <div className="flex items-center gap-2 pt-2 border-t">
-                    <div className="flex-1 text-xs text-muted-foreground">
-                      Add an activity to Day {day.dayNumber}
+                  {canEdit ? (
+                    <div className="flex items-center gap-2 pt-2 border-t">
+                      <div className="flex-1 text-xs text-muted-foreground">
+                        Add an activity to Day {day.dayNumber}
+                      </div>
+                      <AddItemDialog
+                        tripId={tripId}
+                        dayId={day.id}
+                        dayNumber={day.dayNumber}
+                        onSuccess={() => {}}
+                      />
                     </div>
-                    <AddItemDialog
-                      tripId={tripId}
-                      dayId={day.id}
-                      dayNumber={day.dayNumber}
-                      onSuccess={() => {}}
-                    />
-                  </div>
+                  ) : null}
                 </CardContent>
               </Card>
             );

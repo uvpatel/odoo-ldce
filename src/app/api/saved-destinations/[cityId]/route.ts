@@ -13,7 +13,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const result = await UserRepository.toggleSavedDestination(user.id, cityId);
+    const result = await UserRepository.removeSavedDestination(user.id, cityId);
     return NextResponse.json({ success: true, ...result });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Failed to remove saved destination";

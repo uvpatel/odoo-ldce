@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import Image from "next/image"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { toast } from "sonner"
@@ -99,10 +100,14 @@ export function SignupForm({
   const handleGoogleSignUp = async () => {
     setIsGoogleLoading(true)
     try {
-      await authClient.signIn.social({
+      const { error } = await authClient.signIn.social({
         provider: "google",
         callbackURL: "/dashboard",
       })
+      if (error) {
+        toast.error(error.message || "Unable to sign up with Google.")
+        setIsGoogleLoading(false)
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Unable to sign up with Google."
       toast.error(message)
@@ -113,10 +118,14 @@ export function SignupForm({
   const handleGithubSignUp = async () => {
     setIsGithubLoading(true)
     try {
-      await authClient.signIn.social({
+      const { error } = await authClient.signIn.social({
         provider: "github",
         callbackURL: "/dashboard",
       })
+      if (error) {
+        toast.error(error.message || "Unable to sign up with GitHub.")
+        setIsGithubLoading(false)
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Unable to sign up with GitHub."
       toast.error(message)
@@ -282,17 +291,19 @@ export function SignupForm({
             </FieldGroup>
           </form>
           <div className="relative hidden bg-muted md:block">
-            <img
-              src="/placeholder.svg"
-              alt="Image"
+            <Image
+              src="/travel.png"
+              alt="Illustrated travel destinations"
+              fill
+              sizes="(min-width: 768px) 50vw, 0px"
               className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
             />
           </div>
         </CardContent>
       </Card>
       <FieldDescription className="px-6 text-center">
-        By clicking continue, you agree to our <a href="#" className="hover:underline">Terms of Service</a>{" "}
-        and <a href="#" className="hover:underline">Privacy Policy</a>.
+        By continuing, you agree to our <Link href="/terms" className="hover:underline">Terms of Service</Link>{" "}
+        and <Link href="/privacy" className="hover:underline">Privacy Policy</Link>.
       </FieldDescription>
     </div>
   )

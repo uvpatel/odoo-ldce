@@ -1,7 +1,7 @@
 import { db } from "@/db";
 import { tripBudgets, expenses } from "@/db/schema/budget";
 import { trips } from "@/db/schema/travel";
-import { eq, and, sql, desc, asc } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import type {
   UpsertTripBudgetInput,
   CreateExpenseInput,
@@ -70,8 +70,12 @@ export class BudgetRepository {
       .orderBy(desc(expenses.expenseDate), desc(expenses.createdAt));
   }
 
-  static async findExpenseById(expenseId: string) {
-    const results = await db.select().from(expenses).where(eq(expenses.id, expenseId)).limit(1);
+  static async findExpenseById(tripId: string, expenseId: string) {
+    const results = await db
+      .select()
+      .from(expenses)
+      .where(and(eq(expenses.id, expenseId), eq(expenses.tripId, tripId)))
+      .limit(1);
     return results[0] ?? null;
   }
 
@@ -95,7 +99,7 @@ export class BudgetRepository {
     return newExpense[0];
   }
 
-  static async updateExpense(expenseId: string, input: UpdateExpenseInput) {
+  static async updateExpense(tripId: string, expenseId: string, input: UpdateExpenseInput) {
     const updateValues: Record<string, unknown> = {
       updatedAt: new Date(),
     };
@@ -113,25 +117,35 @@ export class BudgetRepository {
     const updated = await db
       .update(expenses)
       .set(updateValues)
-      .where(eq(expenses.id, expenseId))
+      .where(and(eq(expenses.id, expenseId), eq(expenses.tripId, tripId)))
       .returning();
 
     return updated[0] ?? null;
   }
 
-  static async deleteExpense(expenseId: string) {
-    const deleted = await db.delete(expenses).where(eq(expenses.id, expenseId)).returning();
+  static async deleteExpense(tripId: string, expenseId: string) {
+    const deleted = await db
+      .delete(expenses)
+      .where(and(eq(expenses.id, expenseId), eq(expenses.tripId, tripId)))
+      .returning();
     return deleted[0] ?? null;
   }
 
   static async calculateBudgetSummary(tripId: string) {
-    const [budgetConfig, allExpenses] = await Promise.all([
+    const [budgetConfig, allExpenses, tripConfig] = await Promise.all([
       this.findTripBudget(tripId),
       db.select().from(expenses).where(eq(expenses.tripId, tripId)),
+      db
+        .select({ budgetLimit: trips.budgetLimit, currency: trips.currency })
+        .from(trips)
+        .where(eq(trips.id, tripId))
+        .limit(1),
     ]);
 
-    const totalBudget = budgetConfig ? Number(budgetConfig.totalBudget) : 0;
-    const currency = budgetConfig?.currency || "USD";
+    const totalBudget = budgetConfig
+      ? Number(budgetConfig.totalBudget)
+      : Number(tripConfig[0]?.budgetLimit ?? 0);
+    const currency = budgetConfig?.currency || tripConfig[0]?.currency || "USD";
 
     let totalSpent = 0;
     let actualSpent = 0;

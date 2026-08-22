@@ -15,6 +15,46 @@ const getBaseURL = () => {
 };
 
 const baseURL = getBaseURL();
+const authSecret = process.env.BETTER_AUTH_SECRET;
+
+if (!authSecret && process.env.NODE_ENV === "production") {
+  throw new Error("BETTER_AUTH_SECRET must be configured in production");
+}
+
+async function sendTransactionalEmail({
+  email,
+  subject,
+  html,
+}: {
+  email: string;
+  subject: string;
+  html: string;
+}) {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.EMAIL_FROM;
+
+  if (!apiKey || !from) {
+    throw new Error("Password reset email delivery is not configured");
+  }
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from,
+      to: [email],
+      subject,
+      html,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Unable to send account email");
+  }
+}
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -26,7 +66,7 @@ export const auth = betterAuth({
       verification: schema.verification,
     },
   }),
-  secret: process.env.BETTER_AUTH_SECRET || "default_better_auth_secret_key_32_characters_long",
+  secret: authSecret || "local-development-secret-change-before-deploying",
   baseURL,
   trustedOrigins: [
     baseURL,
@@ -37,6 +77,12 @@ export const auth = betterAuth({
     ...(process.env.VERCEL_URL ? [`https://${process.env.VERCEL_URL}`] : []),
   ],
   user: {
+    changeEmail: {
+      enabled: true,
+    },
+    deleteUser: {
+      enabled: true,
+    },
     additionalFields: {
       role: {
         type: "string",
@@ -55,6 +101,23 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: false,
+    revokeSessionsOnPasswordReset: true,
+    sendResetPassword: async ({ user, url }) => {
+      await sendTransactionalEmail({
+        email: user.email,
+        subject: "Reset your GlobeTrotter password",
+        html: `<p>Hello,</p><p>Use the secure link below to reset your GlobeTrotter password. This link expires in one hour.</p><p><a href="${url}">Reset password</a></p><p>If you did not request this, you can ignore this email.</p>`,
+      });
+    },
+  },
+  emailVerification: {
+    sendVerificationEmail: async ({ user, url }) => {
+      await sendTransactionalEmail({
+        email: user.email,
+        subject: "Confirm your GlobeTrotter email",
+        html: `<p>Hello,</p><p>Confirm this email address for your GlobeTrotter account using the secure link below.</p><p><a href="${url}">Confirm email address</a></p><p>If you did not request this change, you can ignore this email.</p>`,
+      });
+    },
   },
   socialProviders: {
     google: {

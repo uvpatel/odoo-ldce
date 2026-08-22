@@ -29,7 +29,7 @@ export class ItineraryService {
     if (!canEdit) {
       throw new Error("Unauthorized: Cannot modify trip stops.");
     }
-    return ItineraryRepository.updateStop(stopId, input);
+    return ItineraryRepository.updateStop(tripId, stopId, input);
   }
 
   static async deleteStop(userId: string, tripId: string, stopId: string, userRole?: string) {
@@ -37,7 +37,7 @@ export class ItineraryService {
     if (!canEdit) {
       throw new Error("Unauthorized: Cannot delete trip stop.");
     }
-    return ItineraryRepository.deleteStop(stopId);
+    return ItineraryRepository.deleteStop(tripId, stopId);
   }
 
   static async reorderStops(userId: string, tripId: string, stopIds: string[], userRole?: string) {
@@ -53,6 +53,14 @@ export class ItineraryService {
     if (!canEdit) {
       throw new Error("Unauthorized: Cannot modify trip days.");
     }
+
+    if (
+      input.tripStopId &&
+      !(await ItineraryRepository.findTripStopById(input.tripId, input.tripStopId))
+    ) {
+      throw new Error("Invalid trip stop: The stop does not belong to this trip.");
+    }
+
     return ItineraryRepository.createDay(input);
   }
 
@@ -67,7 +75,15 @@ export class ItineraryService {
     if (!canEdit) {
       throw new Error("Unauthorized: Cannot modify trip days.");
     }
-    return ItineraryRepository.updateDay(dayId, input);
+
+    if (
+      input.tripStopId &&
+      !(await ItineraryRepository.findTripStopById(tripId, input.tripStopId))
+    ) {
+      throw new Error("Invalid trip stop: The stop does not belong to this trip.");
+    }
+
+    return ItineraryRepository.updateDay(tripId, dayId, input);
   }
 
   static async deleteDay(userId: string, tripId: string, dayId: string, userRole?: string) {
@@ -75,7 +91,7 @@ export class ItineraryService {
     if (!canEdit) {
       throw new Error("Unauthorized: Cannot delete trip day.");
     }
-    return ItineraryRepository.deleteDay(dayId);
+    return ItineraryRepository.deleteDay(tripId, dayId);
   }
 
   static async addItineraryItem(
@@ -87,6 +103,11 @@ export class ItineraryService {
     if (!canEdit) {
       throw new Error("Unauthorized: Cannot add itinerary items.");
     }
+
+    if (!(await ItineraryRepository.findTripDayById(input.tripId, input.tripDayId))) {
+      throw new Error("Invalid trip day: The day does not belong to this trip.");
+    }
+
     return ItineraryRepository.createItineraryItem(input);
   }
 
@@ -101,7 +122,7 @@ export class ItineraryService {
     if (!canEdit) {
       throw new Error("Unauthorized: Cannot edit itinerary item.");
     }
-    return ItineraryRepository.updateItineraryItem(itemId, input);
+    return ItineraryRepository.updateItineraryItem(tripId, itemId, input);
   }
 
   static async deleteItineraryItem(
@@ -114,7 +135,7 @@ export class ItineraryService {
     if (!canEdit) {
       throw new Error("Unauthorized: Cannot delete itinerary item.");
     }
-    return ItineraryRepository.deleteItineraryItem(itemId);
+    return ItineraryRepository.deleteItineraryItem(tripId, itemId);
   }
 
   static async reorderItineraryItems(
@@ -128,6 +149,11 @@ export class ItineraryService {
     if (!canEdit) {
       throw new Error("Unauthorized: Cannot reorder itinerary items.");
     }
-    return ItineraryRepository.reorderItineraryItems(tripDayId, itemIds);
+
+    if (!(await ItineraryRepository.findTripDayById(tripId, tripDayId))) {
+      throw new Error("Invalid trip day: The day does not belong to this trip.");
+    }
+
+    return ItineraryRepository.reorderItineraryItems(tripId, tripDayId, itemIds);
   }
 }

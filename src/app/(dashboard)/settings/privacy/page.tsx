@@ -1,88 +1,102 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { toast } from "sonner"
-import { LockIcon, EyeIcon, ShieldCheckIcon, SaveIcon } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Checkbox } from "@/components/ui/checkbox"
+import * as React from "react";
+import Link from "next/link";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Loader2Icon, SaveIcon, ShieldCheckIcon } from "lucide-react";
+import { toast } from "sonner";
+import { apiClient } from "@/lib/api-client";
+import { userKeys } from "@/lib/query-keys";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Skeleton } from "@/components/ui/skeleton";
+
+interface PreferencesData {
+  language: string;
+  currency: string;
+  timezone: string;
+  isProfilePublic: boolean;
+}
 
 export default function PrivacySettingsPage() {
-  const [shareTripsPublicly, setShareTripsPublicly] = React.useState(false)
-  const [showProfileInExplore, setShowProfileInExplore] = React.useState(true)
-  const [emailNotifications, setEmailNotifications] = React.useState(true)
+  const queryClient = useQueryClient();
+  const { data, isLoading } = useQuery<PreferencesData>({
+    queryKey: userKeys.preferences,
+    queryFn: () => apiClient.get("/api/users/me/preferences"),
+  });
+  const [profileVisibility, setProfileVisibility] = React.useState<boolean | null>(null);
+  const isProfilePublic = profileVisibility ?? data?.isProfilePublic ?? false;
 
-  const handleSave = (e: React.FormEvent) => {
-    e.preventDefault()
-    toast.success("Privacy settings saved.")
+  const updateMutation = useMutation({
+    mutationFn: () =>
+      apiClient.patch<PreferencesData>("/api/users/me/preferences", {
+        isProfilePublic,
+      }),
+    onSuccess: (preferences) => {
+      queryClient.setQueryData(userKeys.preferences, preferences);
+      queryClient.invalidateQueries({ queryKey: userKeys.profile });
+      setProfileVisibility(null);
+      toast.success("Privacy setting saved.");
+    },
+    onError: (error: Error) => toast.error(error.message || "Failed to save privacy setting"),
+  });
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-6 w-44" />
+          <Skeleton className="mt-2 h-4 w-72" />
+        </CardHeader>
+        <CardContent><Skeleton className="h-28 w-full" /></CardContent>
+      </Card>
+    );
   }
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-xl">Privacy & Visibility</CardTitle>
+        <CardTitle className="flex items-center gap-2 text-xl">
+          <ShieldCheckIcon className="size-5 text-primary" />
+          Privacy & Visibility
+        </CardTitle>
         <CardDescription>
-          Control who can see your itineraries, public profile, and activity feed.
+          Control whether your traveler profile can accompany trips you publish to the community.
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSave} className="space-y-6 max-w-xl">
-          <div className="space-y-4">
-            <div className="flex items-start gap-3 rounded-lg border p-4">
-              <Checkbox
-                id="profileExplore"
-                checked={showProfileInExplore}
-                onCheckedChange={(checked) => setShowProfileInExplore(Boolean(checked))}
-              />
-              <div className="space-y-1 leading-none">
-                <label htmlFor="profileExplore" className="text-sm font-semibold cursor-pointer">
-                  Show profile on Community Explore
-                </label>
-                <p className="text-xs text-muted-foreground">
-                  Allow other travelers to see your published itineraries and follower stats.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3 rounded-lg border p-4">
-              <Checkbox
-                id="publicDefault"
-                checked={shareTripsPublicly}
-                onCheckedChange={(checked) => setShareTripsPublicly(Boolean(checked))}
-              />
-              <div className="space-y-1 leading-none">
-                <label htmlFor="publicDefault" className="text-sm font-semibold cursor-pointer">
-                  Default new trips to public visibility
-                </label>
-                <p className="text-xs text-muted-foreground">
-                  When creating new trips, automatically make them readable by anyone with the link.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3 rounded-lg border p-4">
-              <Checkbox
-                id="notifications"
-                checked={emailNotifications}
-                onCheckedChange={(checked) => setEmailNotifications(Boolean(checked))}
-              />
-              <div className="space-y-1 leading-none">
-                <label htmlFor="notifications" className="text-sm font-semibold cursor-pointer">
-                  Email notifications for trip invitations
-                </label>
-                <p className="text-xs text-muted-foreground">
-                  Receive an email when someone invites you to collaborate on a trip.
-                </p>
-              </div>
-            </div>
+      <CardContent className="max-w-xl space-y-6">
+        <div className="flex items-start gap-3 rounded-xl border bg-muted/20 p-4">
+          <Checkbox
+            id="profileExplore"
+            checked={isProfilePublic}
+            onCheckedChange={(checked) => setProfileVisibility(Boolean(checked))}
+          />
+          <div className="space-y-1 leading-none">
+            <label htmlFor="profileExplore" className="cursor-pointer text-sm font-semibold">
+              Show my traveler profile with public trips
+            </label>
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              Your display name and avatar may appear beside itineraries you deliberately publish. Your email address is never shown.
+            </p>
           </div>
+        </div>
 
-          <Button type="submit" className="gap-2">
-            <SaveIcon className="size-4" />
-            Save Privacy Settings
-          </Button>
-        </form>
+        <div className="rounded-xl border border-primary/15 bg-primary/5 p-4 text-xs text-muted-foreground">
+          Trip visibility remains under your control per itinerary. Manage public links, copying, and expiration from each trip&apos;s
+          {" "}<Link href="/trips" className="font-semibold text-primary underline-offset-4 hover:underline">sharing settings</Link>.
+        </div>
+
+        <Button
+          type="button"
+          onClick={() => updateMutation.mutate()}
+          disabled={updateMutation.isPending || profileVisibility === null}
+          className="gap-2"
+        >
+          {updateMutation.isPending ? <Loader2Icon className="size-4 animate-spin" /> : <SaveIcon className="size-4" />}
+          Save Privacy Setting
+        </Button>
       </CardContent>
     </Card>
-  )
+  );
 }

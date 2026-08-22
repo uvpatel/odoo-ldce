@@ -1,17 +1,20 @@
 "use client"
 
 import * as React from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { toast } from "sonner"
-import { ArrowLeftIcon, LockIcon } from "lucide-react"
+import { ArrowLeftIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Field, FieldLabel } from "@/components/ui/field"
+import { authClient } from "@/lib/auth-client"
 
 export default function ResetPasswordPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const token = searchParams.get("token")
   const [password, setPassword] = React.useState("")
   const [confirmPassword, setConfirmPassword] = React.useState("")
   const [isLoading, setIsLoading] = React.useState(false)
@@ -26,12 +29,30 @@ export default function ResetPasswordPage() {
       toast.error("Passwords do not match.")
       return
     }
+    if (!token) {
+      toast.error("This reset link is invalid or has expired.")
+      return
+    }
+
     setIsLoading(true)
-    setTimeout(() => {
-      setIsLoading(false)
+    try {
+      const { error } = await authClient.resetPassword({
+        newPassword: password,
+        token,
+      })
+
+      if (error) {
+        toast.error(error.message || "Unable to reset your password.")
+        return
+      }
+
       toast.success("Password reset successfully. Please sign in.")
-      router.push("/sign-in")
-    }, 800)
+      router.push("/signin")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to reset your password.")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -76,7 +97,7 @@ export default function ResetPasswordPage() {
         </CardContent>
         <CardFooter className="flex justify-center border-t pt-4">
           <Link
-            href="/sign-in"
+            href="/signin"
             className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
           >
             <ArrowLeftIcon className="size-3.5" />

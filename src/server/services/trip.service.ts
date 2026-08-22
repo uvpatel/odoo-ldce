@@ -1,13 +1,13 @@
 import { db } from "@/db";
 import { trips, tripMembers, tripStops, tripDays, itineraryItems } from "@/db/schema/travel";
 import { tripBudgets, expenses } from "@/db/schema/budget";
-import { user } from "@/db/schema/auth";
 import { TripRepository } from "../repositories/trip.repository";
 import { ItineraryRepository } from "../repositories/itinerary.repository";
 import { BudgetRepository } from "../repositories/budget.repository";
 import { CityRepository } from "../repositories/city.repository";
+import { SharingRepository } from "../repositories/sharing.repository";
 import { AuthorizationService } from "./authorization.service";
-import { eq, and, isNull, desc, asc, gte } from "drizzle-orm";
+import { eq, and, asc } from "drizzle-orm";
 import type { CreateTripInput, UpdateTripInput, TripFilterInput } from "@/lib/validation";
 
 export class TripService {
@@ -80,10 +80,37 @@ export class TripService {
     const isOwner = Boolean(accessCtx.userId && trip.ownerId === accessCtx.userId);
     const userMember = members.find((m) => m.userId === accessCtx.userId);
     const userRole = isOwner ? "owner" : (userMember?.role ?? (trip.visibility === "public" ? "viewer" : null));
+    const canSeeMemberEmails =
+      isOwner ||
+      Boolean(userMember) ||
+      accessCtx.userRole === "admin" ||
+      accessCtx.userRole === "super_admin";
+    const visibleMembers = canSeeMemberEmails
+      ? members
+      : members.map((member) => ({
+          id: member.id,
+          role: member.role,
+          joinedAt: member.joinedAt,
+          user: {
+            id: member.user.id,
+            name: member.user.name,
+            image: member.user.image,
+          },
+        }));
+    const visibleTrip = canSeeMemberEmails
+      ? trip
+      : {
+          ...trip,
+          owner: {
+            id: trip.owner.id,
+            name: trip.owner.name,
+            image: trip.owner.image,
+          },
+        };
 
     return {
-      trip,
-      members,
+      trip: visibleTrip,
+      members: visibleMembers,
       stops: itinerary.stops,
       days: itinerary.days,
       budget: budgetSummary,
@@ -104,22 +131,34 @@ export class TripService {
   static async copyTrip(
     sourceTripId: string,
     targetUserId: string,
-    customName?: string
+    options: {
+      customName?: string;
+      shareToken?: string;
+      userRole?: string;
+    } = {}
   ) {
-    // 1. Fetch source trip
-    const sourceTrip = await TripRepository.findTripById(sourceTripId);
+    // 1. Fetch source trip and its explicitly authorized members.
+    const [sourceTrip, sourceMembers] = await Promise.all([
+      TripRepository.findTripById(sourceTripId),
+      TripRepository.getTripMembers(sourceTripId),
+    ]);
     if (!sourceTrip) {
       throw new Error("Source trip not found.");
     }
 
-    // Check if target user has permission to copy
-    const canView = await AuthorizationService.canViewTrip({
-      tripId: sourceTripId,
-      userId: targetUserId,
-    });
+    const isOwner = sourceTrip.ownerId === targetUserId;
+    const isMember = sourceMembers.some((member) => member.userId === targetUserId);
+    const isAdmin = options.userRole === "admin" || options.userRole === "super_admin";
 
-    if (!canView && sourceTrip.visibility !== "public") {
-      throw new Error("Unauthorized: Cannot copy private trip.");
+    if (!isOwner && !isMember && !isAdmin) {
+      if (!options.shareToken) {
+        throw new Error("Unauthorized: A copy-enabled share link is required.");
+      }
+
+      const activeShare = await SharingRepository.findShareByToken(options.shareToken);
+      if (activeShare?.share.tripId !== sourceTripId || !activeShare.share.allowCopy) {
+        throw new Error("Unauthorized: This share link does not allow copying.");
+      }
     }
 
     // 2. Fetch all source child records
@@ -131,7 +170,7 @@ export class TripService {
       db.select().from(expenses).where(and(eq(expenses.tripId, sourceTripId), eq(expenses.isEstimated, true))),
     ]);
 
-    const newName = customName || `Copy of ${sourceTrip.name}`;
+    const newName = options.customName || `Copy of ${sourceTrip.name}`;
     const newSlug = this.generateSlug(newName);
 
     // 3. Perform atomic copy sequence

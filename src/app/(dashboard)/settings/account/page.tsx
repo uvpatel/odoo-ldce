@@ -1,20 +1,25 @@
 "use client"
 
 import * as React from "react"
+import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { ShieldAlertIcon, LockIcon, Trash2Icon, KeyRoundIcon } from "lucide-react"
+import { ShieldAlertIcon, Trash2Icon, KeyRoundIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Field, FieldLabel } from "@/components/ui/field"
+import { authClient } from "@/lib/auth-client"
 
 export default function AccountSettingsPage() {
+  const router = useRouter()
   const [currentPassword, setCurrentPassword] = React.useState("")
   const [newPassword, setNewPassword] = React.useState("")
   const [confirmPassword, setConfirmPassword] = React.useState("")
   const [isLoading, setIsLoading] = React.useState(false)
+  const [deletePassword, setDeletePassword] = React.useState("")
+  const [isDeleting, setIsDeleting] = React.useState(false)
 
-  const handlePasswordUpdate = (e: React.FormEvent) => {
+  const handlePasswordUpdate = async (e: React.FormEvent) => {
     e.preventDefault()
     if (newPassword.length < 8) {
       toast.error("New password must be at least 8 characters.")
@@ -26,18 +31,51 @@ export default function AccountSettingsPage() {
     }
 
     setIsLoading(true)
-    setTimeout(() => {
+    try {
+      const { error } = await authClient.changePassword({
+        currentPassword,
+        newPassword,
+        revokeOtherSessions: true,
+      })
+
+      if (error) {
+        toast.error(error.message || "Unable to change your password.")
+        return
+      }
+
       setIsLoading(false)
       setCurrentPassword("")
       setNewPassword("")
       setConfirmPassword("")
       toast.success("Account password changed successfully.")
-    }, 600)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to change your password.")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const handleDeleteAccount = () => {
-    if (confirm("WARNING: This will permanently delete your account and all associated itineraries, expenses, and saved places. Proceed?")) {
-      toast.error("Account deletion requested.")
+  const handleDeleteAccount = async () => {
+    if (!confirm("Permanently delete your account, trips, expenses, and saved places? This cannot be undone.")) return
+
+    setIsDeleting(true)
+    try {
+      const { error } = await authClient.deleteUser(
+        deletePassword ? { password: deletePassword } : undefined
+      )
+
+      if (error) {
+        toast.error(error.message || "Unable to delete your account.")
+        return
+      }
+
+      toast.success("Your account has been deleted.")
+      router.push("/")
+      router.refresh()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to delete your account.")
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -105,10 +143,22 @@ export default function AccountSettingsPage() {
             Permanently remove your personal account and all travel records.
           </CardDescription>
         </CardHeader>
+        <CardContent className="space-y-2 pb-4">
+          <Field>
+            <FieldLabel htmlFor="deletePassword">Password confirmation</FieldLabel>
+            <Input
+              id="deletePassword"
+              type="password"
+              value={deletePassword}
+              onChange={(event) => setDeletePassword(event.target.value)}
+              placeholder="Required for password accounts"
+            />
+          </Field>
+        </CardContent>
         <CardFooter className="pt-0">
-          <Button variant="destructive" size="sm" onClick={handleDeleteAccount} className="gap-2 text-xs">
+          <Button variant="destructive" size="sm" onClick={handleDeleteAccount} disabled={isDeleting} className="gap-2 text-xs">
             <Trash2Icon className="size-3.5" />
-            Delete My Account
+            {isDeleting ? "Deleting..." : "Delete My Account"}
           </Button>
         </CardFooter>
       </Card>

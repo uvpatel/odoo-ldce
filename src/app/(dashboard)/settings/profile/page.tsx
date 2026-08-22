@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { UserIcon, CameraIcon, SaveIcon, Loader2Icon } from "lucide-react";
+import { CameraIcon, SaveIcon, Loader2Icon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiClient } from "@/lib/api-client";
+import { authClient } from "@/lib/auth-client";
 import { userKeys } from "@/lib/query-keys";
 
 interface UserProfileResponse {
@@ -30,37 +31,10 @@ interface UserProfileResponse {
 }
 
 export default function ProfileSettingsPage() {
-  const queryClient = useQueryClient();
-
   const { data, isLoading } = useQuery<UserProfileResponse>({
     queryKey: userKeys.profile,
     queryFn: () => apiClient.get("/api/users/me"),
   });
-
-  const [name, setName] = React.useState("");
-  const [email, setEmail] = React.useState("");
-
-  React.useEffect(() => {
-    if (data?.user) {
-      setName(data.user.name || "");
-      setEmail(data.user.email || "");
-    }
-  }, [data]);
-
-  const updatePreferencesMutation = useMutation({
-    mutationFn: (input: { isProfilePublic?: boolean }) =>
-      apiClient.patch("/api/users/me/preferences", input),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: userKeys.profile });
-      toast.success("Profile saved successfully!");
-    },
-    onError: (e: Error) => toast.error(e.message || "Failed to update profile"),
-  });
-
-  const handleSave = (e: React.FormEvent) => {
-    e.preventDefault();
-    updatePreferencesMutation.mutate({});
-  };
 
   if (isLoading) {
     return (
@@ -78,7 +52,63 @@ export default function ProfileSettingsPage() {
     );
   }
 
-  const user = data?.user;
+  if (!data?.user) {
+    return <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">Unable to load your profile.</CardContent></Card>;
+  }
+
+  return <ProfileForm key={`${data.user.name}-${data.user.email}-${data.user.image ?? ""}`} user={data.user} />;
+}
+
+function ProfileForm({ user }: { user: UserProfileResponse["user"] }) {
+  const queryClient = useQueryClient();
+  const [name, setName] = React.useState(user.name || "");
+  const [email, setEmail] = React.useState(user.email || "");
+  const [image, setImage] = React.useState(user.image || "");
+
+  const updateProfileMutation = useMutation({
+    mutationFn: async () => {
+      const { data: updatedUser, error } = await authClient.updateUser({
+        name: name.trim(),
+        image: image.trim() || null,
+      });
+
+      if (error) throw new Error(error.message || "Failed to update profile");
+
+      const normalizedEmail = email.trim().toLowerCase();
+      const emailChanged = normalizedEmail !== user.email.toLowerCase();
+      if (emailChanged) {
+        const { error: emailError } = await authClient.changeEmail({
+          newEmail: normalizedEmail,
+          callbackURL: `${window.location.origin}/settings/profile`,
+        });
+        if (emailError) throw new Error(emailError.message || "Failed to request email change");
+      }
+
+      return { updatedUser, emailChanged };
+    },
+    onSuccess: ({ emailChanged }) => {
+      queryClient.invalidateQueries({ queryKey: userKeys.profile });
+      toast.success(
+        emailChanged
+          ? "Profile saved. Check your new inbox to confirm the email change."
+          : "Profile saved successfully!"
+      );
+    },
+    onError: (e: Error) => toast.error(e.message || "Failed to update profile"),
+  });
+
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) {
+      toast.error("Enter your name before saving.");
+      return;
+    }
+    if (!email.trim()) {
+      toast.error("Enter a valid email address before saving.");
+      return;
+    }
+    updateProfileMutation.mutate();
+  };
 
   return (
     <Card>
@@ -92,17 +122,17 @@ export default function ProfileSettingsPage() {
         <form onSubmit={handleSave} className="space-y-6">
           <div className="flex items-center gap-4">
             <Avatar className="size-16 border">
-              {user?.image ? (
-                <AvatarImage src={user.image} alt={user.name} />
+              {image ? (
+                <AvatarImage src={image} alt={name || user.name || "Profile"} />
               ) : (
                 <AvatarFallback className="bg-primary/10 text-primary font-bold text-lg">
-                  {user?.name ? user.name.slice(0, 2).toUpperCase() : "U"}
+                  {user.name ? user.name.slice(0, 2).toUpperCase() : "U"}
                 </AvatarFallback>
               )}
             </Avatar>
             <div>
-              <p className="text-sm font-semibold">{user?.name}</p>
-              <p className="text-xs text-muted-foreground capitalize">Role: {user?.role || "user"}</p>
+              <p className="text-sm font-semibold">{user.name}</p>
+              <p className="text-xs text-muted-foreground capitalize">Role: {user.role || "user"}</p>
             </div>
           </div>
 
@@ -123,15 +153,31 @@ export default function ProfileSettingsPage() {
                 id="email"
                 type="email"
                 value={email}
-                disabled
-                className="bg-muted text-muted-foreground"
+                onChange={(event) => setEmail(event.target.value)}
+                required
               />
-              <p className="text-[11px] text-muted-foreground">Primary login email address</p>
+              <p className="text-[11px] text-muted-foreground">
+                Changes are applied after you confirm the verification email.
+              </p>
             </div>
           </div>
 
-          <Button type="submit" disabled={updatePreferencesMutation.isPending} className="gap-2">
-            {updatePreferencesMutation.isPending ? (
+          <div className="space-y-1.5">
+            <Label htmlFor="profileImage" className="flex items-center gap-2">
+              <CameraIcon className="size-4 text-primary" /> Profile photo URL
+            </Label>
+            <Input
+              id="profileImage"
+              type="url"
+              value={image}
+              onChange={(event) => setImage(event.target.value)}
+              placeholder="https://example.com/your-photo.jpg"
+            />
+            <p className="text-[11px] text-muted-foreground">Paste a secure image URL. Leave blank to use your initials.</p>
+          </div>
+
+          <Button type="submit" disabled={updateProfileMutation.isPending} className="gap-2">
+            {updateProfileMutation.isPending ? (
               <Loader2Icon className="size-4 animate-spin" />
             ) : (
               <SaveIcon className="size-4" />

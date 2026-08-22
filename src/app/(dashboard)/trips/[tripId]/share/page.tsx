@@ -13,7 +13,6 @@ import {
   Loader2Icon,
   ToggleLeftIcon,
   ToggleRightIcon,
-  CalendarIcon,
   GlobeIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -261,7 +260,7 @@ export default function TripSharePage() {
             <li>Anyone with a share link can view the full trip itinerary and details</li>
             <li>No account required to view a shared trip</li>
             <li>Disable a link at any time to immediately revoke access</li>
-            <li>If "Allow Copy" is on, viewers can duplicate the trip to their account</li>
+            <li>If &quot;Allow Copy&quot; is on, viewers can duplicate the trip to their account</li>
           </ul>
         </CardContent>
       </Card>

@@ -1,7 +1,8 @@
 import { db } from "@/db";
-import { trips, tripMembers } from "@/db/schema/travel";
+import { trips, tripDays, tripMembers } from "@/db/schema/travel";
 import { user } from "@/db/schema/auth";
-import { eq, and, isNull, desc, asc, sql, inArray } from "drizzle-orm";
+import { tripShares } from "@/db/schema/social";
+import { eq, and, isNull, desc, asc, sql, inArray, ne } from "drizzle-orm";
 import type { CreateTripInput, UpdateTripInput, TripFilterInput } from "@/lib/validation";
 import type { TripMemberRole } from "@/db/schema/enums";
 
@@ -153,6 +154,13 @@ export class TripRepository {
     const conditions = [
       isNull(trips.deletedAt),
       eq(trips.visibility, "public"),
+      sql`exists (
+        select 1
+        from ${tripShares}
+        where ${tripShares.tripId} = ${trips.id}
+          and ${tripShares.isActive} = true
+          and (${tripShares.expiresAt} is null or ${tripShares.expiresAt} > now())
+      )`,
     ];
 
     if (search) {
@@ -162,7 +170,16 @@ export class TripRepository {
     }
 
     const whereClause = and(...conditions);
-    const orderByClause = sortOrder === "asc" ? asc(trips.createdAt) : desc(trips.createdAt);
+    let orderByClause;
+    if (sortBy === "name") {
+      orderByClause = sortOrder === "asc" ? asc(trips.name) : desc(trips.name);
+    } else if (sortBy === "startDate") {
+      orderByClause = sortOrder === "asc" ? asc(trips.startDate) : desc(trips.startDate);
+    } else if (sortBy === "updatedAt") {
+      orderByClause = sortOrder === "asc" ? asc(trips.updatedAt) : desc(trips.updatedAt);
+    } else {
+      orderByClause = sortOrder === "asc" ? asc(trips.createdAt) : desc(trips.createdAt);
+    }
 
     const [items, totalResult] = await Promise.all([
       db
@@ -179,6 +196,15 @@ export class TripRepository {
           visibility: trips.visibility,
           currency: trips.currency,
           budgetLimit: trips.budgetLimit,
+          shareToken: sql<string | null>`(
+            select ${tripShares.shareToken}
+            from ${tripShares}
+            where ${tripShares.tripId} = ${trips.id}
+              and ${tripShares.isActive} = true
+              and (${tripShares.expiresAt} is null or ${tripShares.expiresAt} > now())
+            order by ${tripShares.createdAt} desc
+            limit 1
+          )`,
           createdAt: trips.createdAt,
           updatedAt: trips.updatedAt,
           owner: {
@@ -234,6 +260,30 @@ export class TripRepository {
         userId: ownerId,
         role: "owner",
       });
+
+      if (input.startDate && input.endDate) {
+        const start = new Date(`${input.startDate}T00:00:00.000Z`);
+        const end = new Date(`${input.endDate}T00:00:00.000Z`);
+        const generatedDays: Array<{
+          tripId: string;
+          date: string;
+          dayNumber: number;
+        }> = [];
+
+        for (let cursor = start, dayNumber = 1; cursor <= end; dayNumber += 1) {
+          generatedDays.push({
+            tripId: newTrip[0].id,
+            date: cursor.toISOString().slice(0, 10),
+            dayNumber,
+          });
+          cursor = new Date(cursor);
+          cursor.setUTCDate(cursor.getUTCDate() + 1);
+        }
+
+        if (generatedDays.length > 0) {
+          await db.insert(tripDays).values(generatedDays);
+        }
+      }
     }
 
     return newTrip[0];
@@ -321,6 +371,16 @@ export class TripRepository {
       .orderBy(asc(tripMembers.createdAt));
   }
 
+  static async findTripMemberById(tripId: string, memberId: string) {
+    const results = await db
+      .select()
+      .from(tripMembers)
+      .where(and(eq(tripMembers.tripId, tripId), eq(tripMembers.id, memberId)))
+      .limit(1);
+
+    return results[0] ?? null;
+  }
+
   static async addMember(tripId: string, userId: string, role: TripMemberRole, invitedBy?: string) {
     const newMember = await db
       .insert(tripMembers)
@@ -335,20 +395,26 @@ export class TripRepository {
     return newMember[0];
   }
 
-  static async updateMemberRole(tripId: string, userId: string, role: TripMemberRole) {
+  static async updateMemberRoleById(tripId: string, memberId: string, role: TripMemberRole) {
     const updated = await db
       .update(tripMembers)
       .set({ role, updatedAt: new Date() })
-      .where(and(eq(tripMembers.tripId, tripId), eq(tripMembers.userId, userId)))
+      .where(and(eq(tripMembers.tripId, tripId), eq(tripMembers.id, memberId)))
       .returning();
 
     return updated[0] ?? null;
   }
 
-  static async removeMember(tripId: string, userId: string) {
+  static async removeMemberById(tripId: string, memberId: string) {
     const deleted = await db
       .delete(tripMembers)
-      .where(and(eq(tripMembers.tripId, tripId), eq(tripMembers.userId, userId)))
+      .where(
+        and(
+          eq(tripMembers.tripId, tripId),
+          eq(tripMembers.id, memberId),
+          ne(tripMembers.role, "owner")
+        )
+      )
       .returning();
 
     return deleted[0] ?? null;

@@ -35,7 +35,7 @@ export type CurrentSessionResult = {
 
 /**
  * Retrieves the current session on the server.
- * Returns null if not authenticated or if the user is suspended.
+ * Returns null if not authenticated.
  */
 export async function getCurrentSession(): Promise<CurrentSessionResult> {
   try {
@@ -99,12 +99,17 @@ export async function getCurrentSession(): Promise<CurrentSessionResult> {
  */
 export async function getCurrentUser(): Promise<AuthUser | null> {
   const sessionResult = await getCurrentSession();
-  return sessionResult ? sessionResult.user : null;
+  if (!sessionResult || sessionResult.user.status !== "active") {
+    return null;
+  }
+
+  return sessionResult.user;
 }
 
 /**
  * Requires an authenticated, active user.
- * Redirects to /signin if unauthenticated, or to /unauthorized if suspended.
+ * Redirects to /signin if unauthenticated, or to /unauthorized if the account
+ * is inactive or suspended.
  */
 export async function requireUser(): Promise<{ user: AuthUser; session: AuthSession }> {
   const sessionResult = await getCurrentSession();
@@ -113,8 +118,8 @@ export async function requireUser(): Promise<{ user: AuthUser; session: AuthSess
     redirect("/signin");
   }
 
-  if (sessionResult.user.status === "suspended") {
-    redirect("/unauthorized?reason=suspended");
+  if (sessionResult.user.status !== "active") {
+    redirect(`/unauthorized?reason=${sessionResult.user.status}`);
   }
 
   return sessionResult;

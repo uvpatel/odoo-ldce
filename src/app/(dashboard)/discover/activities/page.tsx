@@ -3,8 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { SparklesIcon, MapPinIcon, StarIcon, SearchIcon, ClockIcon, DollarSignIcon, FilterIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { SparklesIcon, MapPinIcon, StarIcon, SearchIcon, ClockIcon } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -20,6 +19,8 @@ export default function DiscoverActivitiesPage() {
   const [debouncedSearch, setDebouncedSearch] = React.useState("");
   const [categoryId, setCategoryId] = React.useState<string>("all");
   const [sortBy, setSortBy] = React.useState<"popularity" | "rating" | "cost" | "duration">("popularity");
+  const [maxCost, setMaxCost] = React.useState("all");
+  const [maxDuration, setMaxDuration] = React.useState("all");
 
   React.useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 300);
@@ -33,6 +34,9 @@ export default function DiscoverActivitiesPage() {
     categoryId: categoryId === "all" ? undefined : categoryId,
     cityId: initialCityId,
     sortBy,
+    sortOrder: sortBy === "cost" || sortBy === "duration" ? "asc" : "desc",
+    maxCost: maxCost === "all" ? undefined : Number(maxCost),
+    maxDuration: maxDuration === "all" ? undefined : Number(maxDuration),
     limit: 30,
   });
 
@@ -53,7 +57,7 @@ export default function DiscoverActivitiesPage() {
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <div className="relative w-full">
           <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
@@ -75,6 +79,26 @@ export default function DiscoverActivitiesPage() {
                 {cat.name}
               </SelectItem>
             ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={maxCost} onValueChange={(value) => setMaxCost(value ?? "all")}>
+          <SelectTrigger className="w-full h-10"><SelectValue placeholder="Any price" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Any price</SelectItem>
+            <SelectItem value="25">Up to 25</SelectItem>
+            <SelectItem value="75">Up to 75</SelectItem>
+            <SelectItem value="150">Up to 150</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={maxDuration} onValueChange={(value) => setMaxDuration(value ?? "all")}>
+          <SelectTrigger className="w-full h-10"><SelectValue placeholder="Any duration" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Any duration</SelectItem>
+            <SelectItem value="60">Under 1 hour</SelectItem>
+            <SelectItem value="180">Under 3 hours</SelectItem>
+            <SelectItem value="360">Under 6 hours</SelectItem>
           </SelectContent>
         </Select>
 
@@ -136,7 +160,7 @@ export default function DiscoverActivitiesPage() {
 
               <CardHeader className="pb-2">
                 <CardTitle className="text-base group-hover:text-primary transition-colors line-clamp-1">
-                  {act.name}
+                  <Link href={`/discover/activities/${act.id}`}>{act.name}</Link>
                 </CardTitle>
                 <CardDescription className="text-xs flex items-center gap-1">
                   <MapPinIcon className="size-3" />

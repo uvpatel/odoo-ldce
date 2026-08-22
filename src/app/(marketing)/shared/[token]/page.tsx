@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { sharedTripKeys } from "@/lib/query-keys";
 import { useCopyTrip } from "@/features/trips/hooks/use-trips";
@@ -12,14 +12,12 @@ import {
   MapPinIcon,
   CalendarIcon,
   WalletCardsIcon,
-  UsersIcon,
   ClockIcon,
   CopyIcon,
   ShareIcon,
   AlertCircleIcon,
   CheckCircleIcon,
   Loader2Icon,
-  ArrowLeftIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -112,7 +110,7 @@ export default function SharedTripPage() {
 
   const handleCopyTrip = () => {
     if (!data?.trip?.id) return;
-    copyTrip.mutate(data.trip.id);
+    copyTrip.mutate({ tripId: data.trip.id, shareToken: token });
   };
 
   if (isLoading) {
@@ -260,7 +258,7 @@ export default function SharedTripPage() {
           <div>
             <h2 className="text-lg font-semibold mb-3">Destinations</h2>
             <div className="flex gap-3 overflow-x-auto pb-2">
-              {itinerary.stops.map((stop, i) => (
+              {itinerary.stops.map((stop) => (
                 <div
                   key={stop.id}
                   className="shrink-0 rounded-xl border overflow-hidden w-36"

@@ -23,7 +23,10 @@ export async function GET(
     });
 
     const expensesList = await BudgetService.getExpenses(user.id, filters, user.role);
-    return NextResponse.json(expensesList);
+    return NextResponse.json({
+      items: expensesList,
+      total: expensesList.length,
+    });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Failed to fetch expenses";
     const status = message.includes("Unauthorized") ? 403 : 400;

@@ -22,8 +22,26 @@ export async function PUT(
 
     const body = await req.json();
     const validatedData = updateTripMemberRoleSchema.parse(body);
+    const targetMember = await TripRepository.findTripMemberById(tripId, memberId);
+    if (!targetMember) {
+      return NextResponse.json({ error: "Trip member not found" }, { status: 404 });
+    }
+    if (targetMember.role === "owner" || validatedData.role === "owner") {
+      return NextResponse.json(
+        { error: "Trip ownership cannot be changed from the member role endpoint" },
+        { status: 400 }
+      );
+    }
 
-    const updated = await TripRepository.updateMemberRole(tripId, memberId, validatedData.role);
+    const updated = await TripRepository.updateMemberRoleById(
+      tripId,
+      memberId,
+      validatedData.role
+    );
+    if (!updated) {
+      return NextResponse.json({ error: "Trip member not found" }, { status: 404 });
+    }
+
     return NextResponse.json(updated);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Failed to update member role";
@@ -42,14 +60,33 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const canManage = await AuthorizationService.canManageMembers(user.id, tripId, user.role);
-    const isSelfLeaving = user.id === memberId;
+    const [canManage, targetMember] = await Promise.all([
+      AuthorizationService.canManageMembers(user.id, tripId, user.role),
+      TripRepository.findTripMemberById(tripId, memberId),
+    ]);
+
+    if (!targetMember) {
+      return NextResponse.json({ error: "Trip member not found" }, { status: 404 });
+    }
+
+    const isSelfLeaving = user.id === targetMember.userId;
 
     if (!canManage && !isSelfLeaving) {
       return NextResponse.json({ error: "Unauthorized: Cannot remove member" }, { status: 403 });
     }
 
-    const deleted = await TripRepository.removeMember(tripId, memberId);
+    if (targetMember.role === "owner") {
+      return NextResponse.json(
+        { error: "The trip owner cannot be removed" },
+        { status: 400 }
+      );
+    }
+
+    const deleted = await TripRepository.removeMemberById(tripId, memberId);
+    if (!deleted) {
+      return NextResponse.json({ error: "Trip member not found" }, { status: 404 });
+    }
+
     return NextResponse.json({ success: true, member: deleted });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Failed to remove member";

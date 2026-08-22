@@ -1,25 +1,33 @@
 import * as React from "react"
-
 import {
   LayoutDashboardIcon,
-  MapIcon,
-  PlusCircleIcon,
+  PlaneIcon,
   CompassIcon,
-  MapPinIcon,
-  SparklesIcon,
-  HeartIcon,
+  BookmarkIcon,
   UsersIcon,
-  ChartNoAxesCombinedIcon,
+  ShieldIcon,
+  RouteIcon,
+  WalletCardsIcon,
+  Building2Icon,
+  SparklesIcon,
   Settings2Icon,
+  GlobeIcon,
   CircleHelpIcon,
   SearchIcon,
-  ShieldIcon,
-  PlaneTakeoffIcon,
-  Globe2Icon,
+  UserIcon,
+  SlidersIcon,
+  LockIcon,
+  ShieldAlertIcon,
+  BarChart3Icon,
 } from "lucide-react"
-
 import { can, type Permission } from "@/lib/auth/permissions"
 import type { UserRole } from "@/lib/auth/roles"
+
+export type NavSubItem = {
+  title: string
+  url: string
+  icon?: React.ReactNode
+}
 
 export type NavItem = {
   title: string
@@ -28,12 +36,7 @@ export type NavItem = {
   permission?: Permission | null
   roles?: UserRole[]
   isActive?: boolean
-
-  items?: {
-    title: string
-    url: string
-    permission?: Permission | null
-  }[]
+  items?: NavSubItem[]
 }
 
 export type SidebarDocumentItem = {
@@ -43,12 +46,6 @@ export type SidebarDocumentItem = {
   permission?: Permission | null
 }
 
-/**
- * -------------------------------------------------------
- * MAIN NAVIGATION
- * -------------------------------------------------------
- */
-
 export const baseNavMain: NavItem[] = [
   {
     title: "Dashboard",
@@ -56,11 +53,10 @@ export const baseNavMain: NavItem[] = [
     icon: <LayoutDashboardIcon className="size-4" />,
     permission: null,
   },
-
   {
     title: "My Trips",
-    url: "/trips",
-    icon: <PlaneTakeoffIcon className="size-4" />,
+    url: "dashboard/trips",
+    icon: <PlaneIcon className="size-4" />,
     permission: null,
     items: [
       {
@@ -68,12 +64,11 @@ export const baseNavMain: NavItem[] = [
         url: "/trips",
       },
       {
-        title: "Plan New Trip",
+        title: "Create Trip",
         url: "/trips/new",
       },
     ],
   },
-
   {
     title: "Discover",
     url: "/discover",
@@ -81,7 +76,7 @@ export const baseNavMain: NavItem[] = [
     permission: null,
     items: [
       {
-        title: "Explore",
+        title: "Overview",
         url: "/discover",
       },
       {
@@ -94,62 +89,23 @@ export const baseNavMain: NavItem[] = [
       },
     ],
   },
-
   {
-    title: "Saved",
+    title: "Saved Places",
     url: "/saved",
-    icon: <HeartIcon className="size-4" />,
+    icon: <BookmarkIcon className="size-4" />,
     permission: null,
   },
-]
-
-/**
- * -------------------------------------------------------
- * QUICK ACCESS
- * -------------------------------------------------------
- *
- * These can be rendered using the same sidebar section
- * that was previously called "Documents".
- */
-
-export const baseDocuments: SidebarDocumentItem[] = [
   {
-    name: "Plan New Trip",
-    url: "/trips/new",
-    icon: <PlusCircleIcon className="size-4" />,
-    permission: null,
+    title: "User Management",
+    url: "/dashboard/users",
+    icon: <UsersIcon className="size-4" />,
+    permission: "user.role.manage",
   },
-
   {
-    name: "Explore Cities",
-    url: "/discover/cities",
-    icon: <MapPinIcon className="size-4" />,
-    permission: null,
-  },
-
-  {
-    name: "Find Activities",
-    url: "/discover/activities",
-    icon: <SparklesIcon className="size-4" />,
-    permission: null,
-  },
-]
-
-/**
- * -------------------------------------------------------
- * ADMIN NAVIGATION
- * -------------------------------------------------------
- *
- * Only users with the corresponding permissions should
- * receive these items.
- */
-
-export const baseAdminNav: NavItem[] = [
-  {
-    title: "Admin",
+    title: "Admin Panel",
     url: "/admin",
     icon: <ShieldIcon className="size-4" />,
-    // permission: "admin.access",
+    permission: "reports.read",
     items: [
       {
         title: "Overview",
@@ -179,11 +135,32 @@ export const baseAdminNav: NavItem[] = [
   },
 ]
 
-/**
- * -------------------------------------------------------
- * SECONDARY NAVIGATION
- * -------------------------------------------------------
- */
+export const baseDocuments: SidebarDocumentItem[] = [
+  {
+    name: "Itinerary Planner",
+    url: "/dashboard/trips",
+    icon: <RouteIcon className="size-4" />,
+    permission: null,
+  },
+  {
+    name: "Budget & Expenses",
+    url: "/budget",
+    icon: <WalletCardsIcon className="size-4" />,
+    permission: null,
+  },
+  {
+    name: "Explore Cities",
+    url: "/discover/cities",
+    icon: <Building2Icon className="size-4" />,
+    permission: null,
+  },
+  {
+    name: "Activities Guide",
+    url: "/discover/activities",
+    icon: <SparklesIcon className="size-4" />,
+    permission: null,
+  },
+]
 
 export const baseNavSecondary: NavItem[] = [
   {
@@ -210,114 +187,58 @@ export const baseNavSecondary: NavItem[] = [
       },
     ],
   },
-
   {
-    title: "Search",
-    url: "/search",
-    icon: <SearchIcon className="size-4" />,
+    title: "Explore Public Trips",
+    url: "/explore",
+    icon: <GlobeIcon className="size-4" />,
     permission: null,
   },
-
   {
-    title: "Get Help",
+    title: "Help & Support",
     url: "/get-help",
     icon: <CircleHelpIcon className="size-4" />,
     permission: null,
   },
+  {
+    title: "Search Catalog",
+    url: "/discover",
+    icon: <SearchIcon className="size-4" />,
+    permission: null,
+  },
 ]
 
-/**
- * -------------------------------------------------------
- * SIDEBAR FILTERING
- * -------------------------------------------------------
- */
-
 export function getFilteredSidebarData(user?: {
-  name: string
-  email: string
+  name?: string | null
+  email?: string | null
   image?: string | null
+  avatar?: string | null
   role?: UserRole | string
   status?: string | null
 }) {
-  const userRole = (user?.role as UserRole) || "user"
+  const userRole = (user?.role as UserRole) || "employee"
   const userStatus = user?.status || "active"
+  const authUser = { role: userRole, status: userStatus }
 
-  const authUser = {
-    role: userRole,
-    status: userStatus,
-  }
-
-  /**
-   * Filter normal navigation.
-   */
   const filteredNavMain = baseNavMain.filter((item) => {
-    if (item.roles && !item.roles.includes(userRole)) {
-      return false
-    }
-
-    if (!item.permission) {
-      return true
-    }
-
+    if (!item.permission) return true
     return can(authUser, item.permission)
   })
 
-  /**
-   * Filter quick actions.
-   */
   const filteredDocuments = baseDocuments.filter((item) => {
-    if (!item.permission) {
-      return true
-    }
-
-    return can(authUser, item.permission)
-  })
-
-  /**
-   * Filter admin navigation.
-   */
-  const filteredAdminNav = baseAdminNav.filter((item) => {
-    if (item.roles && !item.roles.includes(userRole)) {
-      return false
-    }
-
-    if (!item.permission) {
-      return true
-    }
-
-    return can(authUser, item.permission)
-  })
-
-  /**
-   * Filter secondary navigation.
-   */
-  const filteredNavSecondary = baseNavSecondary.filter((item) => {
-    if (item.roles && !item.roles.includes(userRole)) {
-      return false
-    }
-
-    if (!item.permission) {
-      return true
-    }
-
+    if (!item.permission) return true
     return can(authUser, item.permission)
   })
 
   return {
     user: {
-      name: user?.name || "Guest User",
-      email: user?.email || "guest@example.com",
-      avatar: user?.image || "/avatars/default-user.png",
+      name: user?.name || "Traveler",
+      email: user?.email || "traveler@globetrotter.io",
+      avatar: user?.image || user?.avatar || "/avatars/traveler.jpg",
       role: userRole,
     },
-
     navMain: filteredNavMain,
-
     documents: filteredDocuments,
-
-    adminNav: filteredAdminNav,
-
-    navSecondary: filteredNavSecondary,
+    navSecondary: baseNavSecondary,
   }
 }
 

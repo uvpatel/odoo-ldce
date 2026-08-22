@@ -1,8 +1,5 @@
 import { pgEnum } from "drizzle-orm/pg-core";
 
-/**
- * User system roles (preserved and compatible with Better Auth configuration)
- */
 export const userRoleEnum = pgEnum("user_role", [
   "employee",
   "manager",
@@ -11,71 +8,48 @@ export const userRoleEnum = pgEnum("user_role", [
   "super_admin",
 ]);
 
-/**
- * User account status
- */
 export const userStatusEnum = pgEnum("user_status", [
   "active",
   "inactive",
   "suspended",
 ]);
 
-/**
- * Trip lifecycle status
- */
+export const tripVisibilityEnum = pgEnum("trip_visibility", [
+  "private",
+  "shared",
+  "public",
+]);
+
 export const tripStatusEnum = pgEnum("trip_status", [
   "draft",
-  "planned",
-  "ongoing",
+  "planning",
+  "confirmed",
+  "in_progress",
   "completed",
   "cancelled",
 ]);
 
-/**
- * Trip privacy and visibility levels
- */
-export const tripVisibilityEnum = pgEnum("trip_visibility", [
-  "private",
-  "friends",
-  "public",
-]);
-
-/**
- * Trip collaboration roles and permission levels
- */
-export const tripMemberRoleEnum = pgEnum("trip_member_role", [
+export const memberRoleEnum = pgEnum("member_role", [
   "owner",
   "editor",
   "viewer",
 ]);
 
-/**
- * Types of items within an itinerary day
- */
-export const itineraryItemTypeEnum = pgEnum("itinerary_item_type", [
-  "activity",
-  "transport",
-  "accommodation",
-  "meal",
-  "custom",
-]);
-
-/**
- * Expense financial categories
- */
 export const expenseCategoryEnum = pgEnum("expense_category", [
-  "transport",
   "accommodation",
-  "activity",
+  "flight",
+  "transit",
   "food",
+  "activity",
   "shopping",
+  "insurance",
   "other",
 ]);
 
-export type UserRole = (typeof userRoleEnum.enumValues)[number];
-export type UserStatus = (typeof userStatusEnum.enumValues)[number];
-export type TripStatus = (typeof tripStatusEnum.enumValues)[number];
-export type TripVisibility = (typeof tripVisibilityEnum.enumValues)[number];
-export type TripMemberRole = (typeof tripMemberRoleEnum.enumValues)[number];
-export type ItineraryItemType = (typeof itineraryItemTypeEnum.enumValues)[number];
-export type ExpenseCategory = (typeof expenseCategoryEnum.enumValues)[number];
+export const itineraryItemTypeEnum = pgEnum("itinerary_item_type", [
+  "activity",
+  "transit",
+  "lodging",
+  "meal",
+  "note",
+]);

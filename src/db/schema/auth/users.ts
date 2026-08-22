@@ -9,14 +9,12 @@ export const user = pgTable("user", {
   image: text("image"),
   role: userRoleEnum("role").default("employee").notNull(),
   status: userStatusEnum("status").default("active").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
-    .defaultNow()
-    .notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" })
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at")
     .defaultNow()
     .$onUpdate(() => new Date())
     .notNull(),
 });
 
-export type User = typeof user.$inferSelect;
-export type NewUser = typeof user.$inferInsert;
+export type UserTable = typeof user.$inferSelect;
+export type NewUserTable = typeof user.$inferInsert;

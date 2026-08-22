@@ -19,14 +19,38 @@ export const dashboardNav: NavItemConfig[] = [
     title: "My Trips",
     href: "/trips",
     icon: "Plane",
+    children: [
+      {
+        title: "All Trips",
+        href: "/trips",
+      },
+      {
+        title: "Create Trip",
+        href: "/trips/new",
+      },
+    ],
   },
   {
     title: "Discover",
     href: "/discover",
     icon: "Compass",
+    children: [
+      {
+        title: "Overview",
+        href: "/discover",
+      },
+      {
+        title: "Cities",
+        href: "/discover/cities",
+      },
+      {
+        title: "Activities",
+        href: "/discover/activities",
+      },
+    ],
   },
   {
-    title: "Saved Destinations",
+    title: "Saved Places",
     href: "/saved",
     icon: "Bookmark",
   },
@@ -39,6 +63,11 @@ export const dashboardNav: NavItemConfig[] = [
 ];
 
 export const adminNav: NavItemConfig[] = [
+  {
+    title: "Overview",
+    href: "/admin",
+    icon: "Shield",
+  },
   {
     title: "Analytics",
     href: "/admin/analytics",
@@ -86,5 +115,20 @@ export const settingsNav: NavItemConfig[] = [
     title: "Account",
     href: "/settings/account",
     icon: "ShieldAlert",
+  },
+];
+
+export const marketingNav: NavItemConfig[] = [
+  {
+    title: "Explore",
+    href: "/explore",
+  },
+  {
+    title: "Features",
+    href: "/#features",
+  },
+  {
+    title: "Dashboard",
+    href: "/dashboard",
   },
 ];

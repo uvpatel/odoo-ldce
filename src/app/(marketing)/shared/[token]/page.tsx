@@ -193,10 +193,10 @@ export default function SharedTripPage() {
             className="h-56 md:h-72 bg-cover bg-center"
             style={{ backgroundImage: `url(${trip.coverImageUrl})` }}
           >
-            <div className="absolute inset-0 bg-gradient-to-t from-background via-background/30 to-transparent" />
+            <div className="absolute inset-0 bg-linear-to-t from-background via-background/30 to-transparent" />
           </div>
         ) : (
-          <div className="h-32 bg-gradient-to-br from-primary/20 via-primary/10 to-secondary/20" />
+          <div className="h-32 bg-linear-to-br from-primary/20 via-primary/10 to-secondary/20" />
         )}
       </div>
 
@@ -271,7 +271,7 @@ export default function SharedTripPage() {
                       style={{ backgroundImage: `url(${stop.city.imageUrl})` }}
                     />
                   ) : (
-                    <div className="h-24 bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
+                    <div className="h-24 bg-linear-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
                       <MapPinIcon className="size-8 text-primary/30" />
                     </div>
                   )}
@@ -373,7 +373,7 @@ export default function SharedTripPage() {
         </div>
 
         {/* CTA */}
-        <Card className="bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border-primary/20">
+        <Card className="bg-linear-to-br from-primary/10 via-primary/5 to-transparent border-primary/20">
           <CardContent className="py-8 text-center space-y-4">
             <div className="flex size-12 mx-auto items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-md">
               <PlaneIcon className="size-6" />

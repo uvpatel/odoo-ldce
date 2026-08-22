@@ -32,7 +32,7 @@ function DayColumn({ day, currency }: { day: TripDay; currency: string }) {
   const dateObj = day.date ? new Date(day.date) : null;
 
   return (
-    <div className="min-w-[200px] flex-1">
+    <div className="min-w-50 flex-1">
       {/* Day header */}
       <div className="sticky top-0 bg-card z-10 pb-2 mb-2">
         <div className="rounded-lg bg-muted/60 p-2 text-center border">
@@ -125,7 +125,7 @@ export default function TripCalendarPage() {
         <Skeleton className="h-8 w-48" />
         <div className="flex gap-3 overflow-x-auto">
           {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="min-w-[180px] h-64 rounded-xl" />
+            <Skeleton key={i} className="min-w-45 h-64 rounded-xl" />
           ))}
         </div>
       </div>

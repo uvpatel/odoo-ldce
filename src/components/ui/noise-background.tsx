@@ -12,23 +12,23 @@ import {
 } from "motion/react";
 import { useEffect, useRef } from "react";
 
-// Helper component for gradient layers
-function GradientLayer({
+// Helper component for linear layers
+function linearLayer({
   springX,
   springY,
-  gradientColor,
+  linearColor,
   opacity,
   multiplier,
 }: {
   springX: MotionValue<number>;
   springY: MotionValue<number>;
-  gradientColor: string;
+  linearColor: string;
   opacity: number;
   multiplier: number;
 }) {
   const x = useTransform(springX, (val) => val * multiplier);
   const y = useTransform(springY, (val) => val * multiplier);
-  const background = useMotionTemplate`radial-gradient(circle at ${x}px ${y}px, ${gradientColor} 0%, transparent 50%)`;
+  const background = useMotionTemplate`radial-linear(circle at ${x}px ${y}px, ${linearColor} 0%, transparent 50%)`;
 
   return (
     <motion.div
@@ -45,7 +45,7 @@ interface NoiseBackgroundProps {
   children?: React.ReactNode;
   className?: string;
   containerClassName?: string;
-  gradientColors?: string[];
+  linearColors?: string[];
   noiseIntensity?: number;
   speed?: number;
   backdropBlur?: boolean;
@@ -56,7 +56,7 @@ export const NoiseBackground = ({
   children,
   className,
   containerClassName,
-  gradientColors = [
+  linearColors = [
     "rgb(255, 100, 150)",
     "rgb(100, 150, 255)",
     "rgb(255, 200, 100)",
@@ -74,8 +74,8 @@ export const NoiseBackground = ({
   const springX = useSpring(x, { stiffness: 100, damping: 30 });
   const springY = useSpring(y, { stiffness: 100, damping: 30 });
 
-  // Transform for top gradient strip
-  const topGradientX = useTransform(springX, (val) => val * 0.1 - 50);
+  // Transform for top linear strip
+  const toplinearX = useTransform(springX, (val) => val * 0.1 - 50);
 
   const velocityRef = useRef({ x: 0, y: 0 });
   const lastDirectionChangeRef = useRef(0);
@@ -169,11 +169,11 @@ export const NoiseBackground = ({
     <div
       ref={containerRef}
       className={cn(
-        "group relative overflow-hidden rounded-2xl bg-neutral-200 p-2 backdrop-blur-sm dark:bg-neutral-800",
+        "group relative overflow-hidden rounded-2xl bg-neutral-200 p-2 backdrop-blur-sm ",
         "shadow-[0px_0.5px_1px_0px_var(--color-neutral-400)_inset,0px_1px_0px_0px_var(--color-neutral-100)]",
         "dark:shadow-[0px_1px_0px_0px_var(--color-neutral-950)_inset,0px_1px_0px_0px_var(--color-neutral-800)]",
         backdropBlur &&
-          "after:absolute after:inset-0 after:h-full after:w-full after:backdrop-blur-lg after:content-['']",
+        "after:absolute after:inset-0 after:h-full after:w-full after:backdrop-blur-lg after:content-['']",
         containerClassName,
       )}
       style={
@@ -182,35 +182,14 @@ export const NoiseBackground = ({
         } as React.CSSProperties
       }
     >
-      {/* Moving gradient layers */}
-      <GradientLayer
-        springX={springX}
-        springY={springY}
-        gradientColor={gradientColors[0]}
-        opacity={0.4}
-        multiplier={1}
-      />
-      <GradientLayer
-        springX={springX}
-        springY={springY}
-        gradientColor={gradientColors[1]}
-        opacity={0.3}
-        multiplier={0.7}
-      />
-      <GradientLayer
-        springX={springX}
-        springY={springY}
-        gradientColor={gradientColors[2] || gradientColors[0]}
-        opacity={0.25}
-        multiplier={1.2}
-      />
-
-      {/* Top gradient strip */}
+      {/* Moving linear layers */}
+   
+      {/* Top linear strip */}
       <motion.div
         className="absolute inset-x-0 top-0 h-1 rounded-t-2xl opacity-80 blur-sm"
         style={{
-          background: `linear-gradient(to right, ${gradientColors.join(", ")})`,
-          x: animating ? topGradientX : 0,
+          background: `linear-linear(to right, ${linearColors.join(", ")})`,
+          x: animating ? toplinearX : 0,
         }}
       />
 
@@ -219,7 +198,7 @@ export const NoiseBackground = ({
         <img
           src="https://assets.aceternity.com/noise.webp"
           alt=""
-          className="h-full w-full object-cover opacity-[var(--noise-opacity)]"
+          className="h-full w-full object-cover opacity-(--noise-opacity)"
           style={{ mixBlendMode: "overlay" }}
         />
       </div>

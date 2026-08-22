@@ -15,7 +15,7 @@ export default function MarketingHomePage() {
         <FeaturesSectionDemo />
       </div>
       <div className="w-full py-16 px-4">
-        <div className="mx-auto max-w-5xl rounded-3xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-8 md:p-12 border shadow-sm">
+        <div className="mx-auto max-w-5xl rounded-3xl bg-linear-to-br from-primary/10 via-primary/5 to-transparent p-8 md:p-12 border shadow-sm">
           <div className="flex flex-col items-center text-center gap-6">
             <div className="flex size-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-md">
               <PlaneIcon className="size-7" />

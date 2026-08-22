@@ -22,40 +22,40 @@ export default async function TeamShowcase() {
       tag: "Founder",
     },
     {
-        id: 3,
-        name: "Darshan Ajudiya",
-        designation: "CTO & Supporter",
-        image:
+      id: 3,
+      name: "Darshan Ajudiya",
+      designation: "CTO & Supporter",
+      image:
         "https://www.image2url.com/r2/default/images/1778320325126-80dad7fc-8c70-40c9-b9e6-461b6a96d710.jpeg",
-        bio: "Drives the technical direction of the team while backing product growth with practical engineering decisions.",
-        tag: "Technology",
+      bio: "Drives the technical direction of the team while backing product growth with practical engineering decisions.",
+      tag: "Technology",
     },
     {
-        id: 4,
+      id: 4,
       name: "Viveksinh Chavda",
       designation: "CFO | Investor",
       image:
         "https://www.image2url.com/r2/default/images/1778389958144-0d23df13-fe82-4f71-8502-70499d883873.jpeg",
-        bio: "Supports the company with financial discipline and investor perspective, helping every bet stay grounded in strategy.",
+      bio: "Supports the company with financial discipline and investor perspective, helping every bet stay grounded in strategy.",
       tag: "Finance",
     },
     {
-        id: 5,
-        name: "Krish Ramani",
-        designation: "Co-Founder & Supporter",
-        image:
+      id: 5,
+      name: "Krish Ramani",
+      designation: "Co-Founder & Supporter",
+      image:
         "https://www.image2url.com/r2/default/images/1778320490480-db71ec47-46b8-470b-b9d3-c0718a5b27a9.jpeg",
-        bio: "Strengthens the foundation of the team through partnership, support, and a strong belief in the mission being built.",
-        tag: "Support",
+      bio: "Strengthens the foundation of the team through partnership, support, and a strong belief in the mission being built.",
+      tag: "Support",
     },
     {
-        id: 6,
-        name: "Krish Koyani",
-        designation: "",
-        image:
+      id: 6,
+      name: "Krish Koyani",
+      designation: "",
+      image:
         "https://www.image2url.com/r2/default/images/1778390007483-05167c4b-da96-402b-b08f-3245284f6555.jpeg",
-        bio: "Shapes product direction with an investor mindset, balancing user value, market fit, and long-term growth.",
-        tag: "Product",
+      bio: "Shapes product direction with an investor mindset, balancing user value, market fit, and long-term growth.",
+      tag: "Product",
     },
     {
       id: 2,
@@ -70,7 +70,7 @@ export default async function TeamShowcase() {
 
   return (
     <section className="relative overflow-hidden bg-[#121212] px-6 py-20 text-white sm:px-8 lg:px-14">
-      <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.06),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.02),transparent_34%)]" />
+      <div className="absolute inset-0 -z-10 bg-[radial-linear(circle_at_top_left,rgba(255,255,255,0.06),transparent_28%),linear-linear(180deg,rgba(255,255,255,0.02),transparent_34%)]" />
 
       <div className="mx-auto max-w-7xl">
         <div className="max-w-3xl">

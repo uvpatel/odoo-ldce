@@ -42,11 +42,11 @@ function CityCard({ city, savedCityIds }: { city: City; savedCityIds: Set<string
               style={{ backgroundImage: `url(${city.imageUrl})` }}
             />
           ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/30 via-primary/10 to-secondary/30 flex items-center justify-center">
+            <div className="absolute inset-0 bg-linear-to-br from-primary/30 via-primary/10 to-secondary/30 flex items-center justify-center">
               <MapPinIcon className="size-12 text-primary/30" />
             </div>
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+          <div className="absolute inset-0 bg-linear-to-t from-black/60 via-black/10 to-transparent" />
           <div className="absolute bottom-3 left-3 right-3">
             <h3 className="text-white font-bold text-lg leading-tight">{city.name}</h3>
             <p className="text-white/80 text-xs">
@@ -93,7 +93,7 @@ function ActivityCard({ activity }: { activity: Activity }) {
             style={{ backgroundImage: `url(${activity.imageUrl})` }}
           />
         ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
+          <div className="absolute inset-0 bg-linear-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
             <SparklesIcon className="size-8 text-primary/30" />
           </div>
         )}

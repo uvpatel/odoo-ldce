@@ -49,7 +49,7 @@ export default function WorldMap({
     <div className="w-full aspect-[2/1] dark:bg-black bg-white rounded-lg  relative font-sans">
       <img
         src={`data:image/svg+xml;utf8,${encodeURIComponent(svgMap)}`}
-        className="h-full w-full [mask-image:linear-gradient(to_bottom,transparent,white_10%,white_90%,transparent)] pointer-events-none select-none"
+        className="h-full w-full [mask-image:linear-linear(to_bottom,transparent,white_10%,white_90%,transparent)] pointer-events-none select-none"
         alt="world map"
         height="495"
         width="1056"
@@ -68,7 +68,7 @@ export default function WorldMap({
               <motion.path
                 d={createCurvedPath(startPoint, endPoint)}
                 fill="none"
-                stroke="url(#path-gradient)"
+                stroke="url(#path-linear)"
                 strokeWidth="1"
                 initial={{
                   pathLength: 0,
@@ -88,12 +88,12 @@ export default function WorldMap({
         })}
 
         <defs>
-          <linearGradient id="path-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+          <linearlinear id="path-linear" x1="0%" y1="0%" x2="100%" y2="0%">
             <stop offset="0%" stopColor="white" stopOpacity="0" />
             <stop offset="5%" stopColor={lineColor} stopOpacity="1" />
             <stop offset="95%" stopColor={lineColor} stopOpacity="1" />
             <stop offset="100%" stopColor="white" stopOpacity="0" />
-          </linearGradient>
+          </linearlinear>
         </defs>
 
         {dots.map((dot, i) => (

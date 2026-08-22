@@ -68,7 +68,7 @@ export default function DiscoverCitiesPage() {
 
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <Select value={sortBy} onValueChange={(val) => setSortBy(val as typeof sortBy)}>
-            <SelectTrigger className="w-full sm:w-[180px] h-10">
+            <SelectTrigger className="w-full sm:w-45 h-10">
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
             <SelectContent>
@@ -106,7 +106,7 @@ export default function DiscoverCitiesPage() {
                       className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
                   ) : (
-                    <div className="h-full w-full bg-gradient-to-br from-primary/20 via-primary/10 to-transparent flex items-center justify-center">
+                    <div className="h-full w-full bg-linear-to-br from-primary/20 via-primary/10 to-transparent flex items-center justify-center">
                       <MapPinIcon className="size-10 text-primary/40" />
                     </div>
                   )}
@@ -122,11 +122,10 @@ export default function DiscoverCitiesPage() {
                       e.preventDefault();
                       toggleSave.mutate(city.id);
                     }}
-                    className={`absolute top-3 left-3 p-2 rounded-full backdrop-blur-sm transition-colors ${
-                      isSaved
+                    className={`absolute top-3 left-3 p-2 rounded-full backdrop-blur-sm transition-colors ${isSaved
                         ? "bg-primary text-primary-foreground shadow-md"
                         : "bg-background/80 text-foreground hover:bg-background"
-                    }`}
+                      }`}
                   >
                     <BookmarkIcon className={`size-3.5 ${isSaved ? "fill-current" : ""}`} />
                   </button>

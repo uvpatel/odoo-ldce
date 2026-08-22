@@ -304,7 +304,7 @@ export default function NewTripPage() {
           <Button
             type="submit"
             disabled={createTripMutation.isPending}
-            className="gap-2 min-w-[120px]"
+            className="gap-2 min-w-30"
           >
             {createTripMutation.isPending ? (
               <>

@@ -110,11 +110,10 @@ export default function TripsPage() {
               key={tab.value}
               type="button"
               onClick={() => setStatusFilter(tab.value)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
-                statusFilter === tab.value
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${statusFilter === tab.value
                   ? "bg-primary text-primary-foreground font-semibold shadow-xs"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              }`}
+                }`}
             >
               {tab.label}
             </button>
@@ -160,15 +159,14 @@ export default function TripsPage() {
                       style={{ backgroundImage: `url(${trip.coverImageUrl})` }}
                     />
                   ) : (
-                    <div className="h-full w-full bg-gradient-to-br from-primary/20 via-primary/10 to-transparent flex items-center justify-center">
+                    <div className="h-full w-full bg-linear-to-br from-primary/20 via-primary/10 to-transparent flex items-center justify-center">
                       <PlaneIcon className="size-10 text-primary/40" />
                     </div>
                   )}
                   <div className="absolute top-3 left-3">
                     <span
-                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize shadow-sm ${
-                        STATUS_STYLES[trip.status] ?? STATUS_STYLES.draft
-                      }`}
+                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize shadow-sm ${STATUS_STYLES[trip.status] ?? STATUS_STYLES.draft
+                        }`}
                     >
                       {trip.status}
                     </span>

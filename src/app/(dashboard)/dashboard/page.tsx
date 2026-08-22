@@ -214,7 +214,7 @@ export default function DashboardPage() {
                         style={{ backgroundImage: `url(${trip.coverImageUrl})` }}
                       />
                     ) : (
-                      <div className="h-28 bg-gradient-to-br from-primary/20 via-primary/10 to-transparent flex items-center justify-center">
+                      <div className="h-28 bg-linear-to-br from-primary/20 via-primary/10 to-transparent flex items-center justify-center">
                         <PlaneIcon className="size-8 text-primary/40" />
                       </div>
                     )}

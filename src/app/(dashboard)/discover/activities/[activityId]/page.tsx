@@ -222,7 +222,7 @@ export default function ActivityDetailPage() {
         </Button>
       </div>
 
-      <div className="relative aspect-[21/9] w-full overflow-hidden rounded-2xl border shadow-sm bg-muted">
+      <div className="relative aspect-21/9 w-full overflow-hidden rounded-2xl border shadow-sm bg-muted">
         {activity.imageUrl ? (
           <img
             src={activity.imageUrl}
@@ -230,11 +230,11 @@ export default function ActivityDetailPage() {
             className="h-full w-full object-cover"
           />
         ) : (
-          <div className="h-full w-full bg-gradient-to-br from-primary/30 via-primary/10 to-transparent flex items-center justify-center">
+          <div className="h-full w-full bg-linear-to-br from-primary/30 via-primary/10 to-transparent flex items-center justify-center">
             <SparklesIcon className="size-16 text-primary/40" />
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-6 text-white">
+        <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-6 text-white">
           <div className="flex items-center gap-2 mb-2 flex-wrap">
             {activity.category && (
               <Badge className="bg-primary text-primary-foreground text-xs">

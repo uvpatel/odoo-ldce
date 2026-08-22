@@ -115,7 +115,7 @@ export default function DiscoverActivitiesPage() {
                     className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                 ) : (
-                  <div className="h-full w-full bg-gradient-to-br from-primary/20 via-primary/10 to-transparent flex items-center justify-center">
+                  <div className="h-full w-full bg-linear-to-br from-primary/20 via-primary/10 to-transparent flex items-center justify-center">
                     <SparklesIcon className="size-10 text-primary/40" />
                   </div>
                 )}

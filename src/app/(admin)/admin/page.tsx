@@ -186,7 +186,7 @@ export default function AdminOverviewPage() {
               <p className="text-xs text-muted-foreground py-4 text-center">No city data available</p>
             ) : (
               (data?.popularCities ?? []).map((c, i) => (
-                <div key={c.id} className="flex items-center justify-between border-b pb-2.5 last:border-0 last:pb-0">
+                <div key={c.id} className="flex items-center justify-between border-b  last:border-0 last:pb-0">
                   <div className="flex items-center gap-3">
                     <span className="flex size-6 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-xs">
                       {i + 1}

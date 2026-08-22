@@ -221,7 +221,7 @@ export default function CityDetailPage() {
       </div>
 
       {/* Hero Banner */}
-      <div className="relative aspect-[21/9] w-full overflow-hidden rounded-2xl border shadow-sm bg-muted">
+      <div className="relative aspect-21/9 w-full overflow-hidden rounded-2xl border shadow-sm bg-muted">
         {city.imageUrl ? (
           <img
             src={city.imageUrl}
@@ -229,11 +229,11 @@ export default function CityDetailPage() {
             className="h-full w-full object-cover"
           />
         ) : (
-          <div className="h-full w-full bg-gradient-to-br from-primary/30 via-primary/10 to-secondary/30 flex items-center justify-center">
+          <div className="h-full w-full bg-linear-to-br from-primary/30 via-primary/10 to-secondary/30 flex items-center justify-center">
             <Building2Icon className="size-20 text-primary/40" />
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent flex flex-col justify-end p-6 md:p-8 text-white">
+        <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/30 to-transparent flex flex-col justify-end p-6 md:p-8 text-white">
           <div className="flex items-center gap-2 mb-2">
             <Badge className="bg-primary text-primary-foreground text-xs">
               {city.country?.name} {city.country?.region ? `• ${city.country.region}` : ""}

@@ -1,18 +1,23 @@
 import * as React from "react"
+
 import {
   LayoutDashboardIcon,
-  ListIcon,
-  ChartBarIcon,
-  FolderIcon,
+  MapIcon,
+  PlusCircleIcon,
+  CompassIcon,
+  MapPinIcon,
+  SparklesIcon,
+  HeartIcon,
   UsersIcon,
+  ChartNoAxesCombinedIcon,
   Settings2Icon,
   CircleHelpIcon,
   SearchIcon,
-  DatabaseIcon,
-  FileChartColumnIcon,
-  FileIcon,
   ShieldIcon,
+  PlaneTakeoffIcon,
+  Globe2Icon,
 } from "lucide-react"
+
 import { can, type Permission } from "@/lib/auth/permissions"
 import type { UserRole } from "@/lib/auth/roles"
 
@@ -23,9 +28,11 @@ export type NavItem = {
   permission?: Permission | null
   roles?: UserRole[]
   isActive?: boolean
+
   items?: {
     title: string
     url: string
+    permission?: Permission | null
   }[]
 }
 
@@ -36,6 +43,12 @@ export type SidebarDocumentItem = {
   permission?: Permission | null
 }
 
+/**
+ * -------------------------------------------------------
+ * MAIN NAVIGATION
+ * -------------------------------------------------------
+ */
+
 export const baseNavMain: NavItem[] = [
   {
     title: "Dashboard",
@@ -43,86 +56,181 @@ export const baseNavMain: NavItem[] = [
     icon: <LayoutDashboardIcon className="size-4" />,
     permission: null,
   },
+
   {
-    title: "User Management",
-    url: "/dashboard/users",
-    icon: <ShieldIcon className="size-4" />,
-    permission: "user.role.manage",
+    title: "My Trips",
+    url: "/trips",
+    icon: <PlaneTakeoffIcon className="size-4" />,
+    permission: null,
+    items: [
+      {
+        title: "All Trips",
+        url: "/trips",
+      },
+      {
+        title: "Plan New Trip",
+        url: "/trips/new",
+      },
+    ],
   },
+
   {
-    title: "Lifecycle",
-    url: "/lifecycle",
-    icon: <ListIcon className="size-4" />,
-    // permission: "employee.read.self",
-    //  permission: "user.role.manage",
+    title: "Discover",
+    url: "/discover",
+    icon: <CompassIcon className="size-4" />,
+    permission: null,
+    items: [
+      {
+        title: "Explore",
+        url: "/discover",
+      },
+      {
+        title: "Cities",
+        url: "/discover/cities",
+      },
+      {
+        title: "Activities",
+        url: "/discover/activities",
+      },
+    ],
   },
+
   {
-    title: "Analytics",
-    url: "/analytics",
-    icon: <ChartBarIcon className="size-4" />,
-    // permission: "reports.read",
+    title: "Saved",
+    url: "/saved",
+    icon: <HeartIcon className="size-4" />,
+    permission: null,
   },
-  {
-    title: "Projects",
-    url: "/projects",
-    icon: <FolderIcon className="size-4" />,
-    // permission: "employee.read.self",
-  },
-  {
-    title: "Team",
-    url: "/team",
-    icon: <UsersIcon className="size-4" />,
-    // permission: "employee.read.team",
-  },
-  {
-    title: "Reports",
-    url: "/reports",
-    icon: <FileChartColumnIcon className="size-4" />,
-    permission: "reports.read",
-  }
 ]
+
+/**
+ * -------------------------------------------------------
+ * QUICK ACCESS
+ * -------------------------------------------------------
+ *
+ * These can be rendered using the same sidebar section
+ * that was previously called "Documents".
+ */
 
 export const baseDocuments: SidebarDocumentItem[] = [
   {
-    name: "Data Library",
-    url: "/data-library",
-    icon: <DatabaseIcon className="size-4" />,
+    name: "Plan New Trip",
+    url: "/trips/new",
+    icon: <PlusCircleIcon className="size-4" />,
     permission: null,
   },
+
   {
-    name: "Reports",
-    url: "/reports",
-    icon: <FileChartColumnIcon className="size-4" />,
-    permission: "reports.read",
+    name: "Explore Cities",
+    url: "/discover/cities",
+    icon: <MapPinIcon className="size-4" />,
+    permission: null,
   },
+
   {
-    name: "Word Assistant",
-    url: "/word-assistant",
-    icon: <FileIcon className="size-4" />,
+    name: "Find Activities",
+    url: "/discover/activities",
+    icon: <SparklesIcon className="size-4" />,
     permission: null,
   },
 ]
+
+/**
+ * -------------------------------------------------------
+ * ADMIN NAVIGATION
+ * -------------------------------------------------------
+ *
+ * Only users with the corresponding permissions should
+ * receive these items.
+ */
+
+export const baseAdminNav: NavItem[] = [
+  {
+    title: "Admin",
+    url: "/admin",
+    icon: <ShieldIcon className="size-4" />,
+    // permission: "admin.access",
+    items: [
+      {
+        title: "Overview",
+        url: "/admin",
+      },
+      {
+        title: "Analytics",
+        url: "/admin/analytics",
+      },
+      {
+        title: "Users",
+        url: "/admin/users",
+      },
+      {
+        title: "Trips",
+        url: "/admin/trips",
+      },
+      {
+        title: "Cities",
+        url: "/admin/cities",
+      },
+      {
+        title: "Activities",
+        url: "/admin/activities",
+      },
+    ],
+  },
+]
+
+/**
+ * -------------------------------------------------------
+ * SECONDARY NAVIGATION
+ * -------------------------------------------------------
+ */
 
 export const baseNavSecondary: NavItem[] = [
   {
     title: "Settings",
-    url: "/settings",
+    url: "/settings/profile",
     icon: <Settings2Icon className="size-4" />,
     permission: null,
+    items: [
+      {
+        title: "Profile",
+        url: "/settings/profile",
+      },
+      {
+        title: "Preferences",
+        url: "/settings/preferences",
+      },
+      {
+        title: "Privacy",
+        url: "/settings/privacy",
+      },
+      {
+        title: "Account",
+        url: "/settings/account",
+      },
+    ],
   },
-  {
-    title: "Get Help",
-    url: "/get-help",
-    icon: <CircleHelpIcon className="size-4" />,
-    permission: null,
-  },
+
   {
     title: "Search",
     url: "/search",
     icon: <SearchIcon className="size-4" />,
     permission: null,
   },
+
+  {
+    title: "Get Help",
+    url: "/get-help",
+    icon: <CircleHelpIcon className="size-4" />,
+    permission: null,
+  },
 ]
+
+/**
+ * -------------------------------------------------------
+ * SIDEBAR FILTERING
+ * -------------------------------------------------------
+ */
 
 export function getFilteredSidebarData(user?: {
   name: string
@@ -131,17 +239,67 @@ export function getFilteredSidebarData(user?: {
   role?: UserRole | string
   status?: string | null
 }) {
-  const userRole = (user?.role as UserRole) || "employee"
+  const userRole = (user?.role as UserRole) || "user"
   const userStatus = user?.status || "active"
-  const authUser = { role: userRole, status: userStatus }
 
+  const authUser = {
+    role: userRole,
+    status: userStatus,
+  }
+
+  /**
+   * Filter normal navigation.
+   */
   const filteredNavMain = baseNavMain.filter((item) => {
-    if (!item.permission) return true
+    if (item.roles && !item.roles.includes(userRole)) {
+      return false
+    }
+
+    if (!item.permission) {
+      return true
+    }
+
     return can(authUser, item.permission)
   })
 
+  /**
+   * Filter quick actions.
+   */
   const filteredDocuments = baseDocuments.filter((item) => {
-    if (!item.permission) return true
+    if (!item.permission) {
+      return true
+    }
+
+    return can(authUser, item.permission)
+  })
+
+  /**
+   * Filter admin navigation.
+   */
+  const filteredAdminNav = baseAdminNav.filter((item) => {
+    if (item.roles && !item.roles.includes(userRole)) {
+      return false
+    }
+
+    if (!item.permission) {
+      return true
+    }
+
+    return can(authUser, item.permission)
+  })
+
+  /**
+   * Filter secondary navigation.
+   */
+  const filteredNavSecondary = baseNavSecondary.filter((item) => {
+    if (item.roles && !item.roles.includes(userRole)) {
+      return false
+    }
+
+    if (!item.permission) {
+      return true
+    }
+
     return can(authUser, item.permission)
   })
 
@@ -149,12 +307,17 @@ export function getFilteredSidebarData(user?: {
     user: {
       name: user?.name || "Guest User",
       email: user?.email || "guest@example.com",
-      avatar: user?.image || "/avatars/shadcn.jpg",
+      avatar: user?.image || "/avatars/default-user.png",
       role: userRole,
     },
+
     navMain: filteredNavMain,
+
     documents: filteredDocuments,
-    navSecondary: baseNavSecondary,
+
+    adminNav: filteredAdminNav,
+
+    navSecondary: filteredNavSecondary,
   }
 }
 

@@ -35,9 +35,9 @@ export function NavDocuments({
       <SidebarMenu>
         {items.map((item) => (
           <SidebarMenuItem key={item.name}>
-            <SidebarMenuButton>
+            <SidebarMenuButton tooltip={item.name} render={<Link href={item.url} />}>
               {item.icon}
-              <Link href={item.name}><span>{item.name}</span></Link> 
+              <span>{item.name}</span>
             </SidebarMenuButton>
             <DropdownMenu>
               <DropdownMenuTrigger
@@ -48,9 +48,8 @@ export function NavDocuments({
                   />
                 }
               >
-                <MoreHorizontalIcon
-                />
-             <Link href="more"><span className="sr-only">More</span></Link>    
+                <MoreHorizontalIcon />
+                <span className="sr-only">More</span>
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 className="w-24"
@@ -58,20 +57,17 @@ export function NavDocuments({
                 align={isMobile ? "end" : "start"}
               >
                 <DropdownMenuItem>
-                  <FolderIcon
-                  />
-                  <Link href="open"><span>Open</span></Link>  
+                  <FolderIcon />
+                  <span>Open</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem>
-                  <ShareIcon
-                  />
-                 <Link href="share"><span>Share</span></Link>   
+                  <ShareIcon />
+                  <span>Share</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem variant="destructive">
-                  <Trash2Icon
-                  />
-                <Link href="delete">  <span>Delete</span></Link>  
+                  <Trash2Icon />
+                  <span>Delete</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

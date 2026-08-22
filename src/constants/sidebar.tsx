@@ -53,44 +53,51 @@ export const baseNavMain: NavItem[] = [
     title: "Lifecycle",
     url: "/lifecycle",
     icon: <ListIcon className="size-4" />,
-    permission: "employee.read.self",
+    // permission: "employee.read.self",
+    //  permission: "user.role.manage",
   },
   {
     title: "Analytics",
     url: "/analytics",
     icon: <ChartBarIcon className="size-4" />,
-    permission: "reports.read",
+    // permission: "reports.read",
   },
   {
     title: "Projects",
     url: "/projects",
     icon: <FolderIcon className="size-4" />,
-    permission: "employee.read.self",
+    // permission: "employee.read.self",
   },
   {
     title: "Team",
-    url: "#",
+    url: "/team",
     icon: <UsersIcon className="size-4" />,
-    permission: "employee.read.team",
+    // permission: "employee.read.team",
   },
+  {
+    title: "Reports",
+    url: "/reports",
+    icon: <FileChartColumnIcon className="size-4" />,
+    permission: "reports.read",
+  }
 ]
 
 export const baseDocuments: SidebarDocumentItem[] = [
   {
     name: "Data Library",
-    url: "#",
+    url: "/data-library",
     icon: <DatabaseIcon className="size-4" />,
     permission: null,
   },
   {
     name: "Reports",
-    url: "#",
+    url: "/reports",
     icon: <FileChartColumnIcon className="size-4" />,
     permission: "reports.read",
   },
   {
     name: "Word Assistant",
-    url: "#",
+    url: "/word-assistant",
     icon: <FileIcon className="size-4" />,
     permission: null,
   },
@@ -99,19 +106,19 @@ export const baseDocuments: SidebarDocumentItem[] = [
 export const baseNavSecondary: NavItem[] = [
   {
     title: "Settings",
-    url: "#",
+    url: "/settings",
     icon: <Settings2Icon className="size-4" />,
     permission: null,
   },
   {
     title: "Get Help",
-    url: "#",
+    url: "/get-help",
     icon: <CircleHelpIcon className="size-4" />,
     permission: null,
   },
   {
     title: "Search",
-    url: "#",
+    url: "/search",
     icon: <SearchIcon className="size-4" />,
     permission: null,
   },

@@ -30,28 +30,23 @@ export function NavMain({
               tooltip="Quick Create"
               className="min-w-8 bg-primary text-primary-foreground duration-200 ease-linear hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground"
             >
-              <CirclePlusIcon
-              />
+              <CirclePlusIcon />
               <span>Quick Create</span>
             </SidebarMenuButton>
-            <Button
-              size="icon"
-              className="size-8 group-data-[collapsible=icon]:opacity-0"
-              variant="outline"
-            >
+            <div className="group-data-[collapsible=icon]:opacity-0">
               <ModeToggle />
-              <span className="sr-only">Inbox</span>
-            </Button>
+            </div>
           </SidebarMenuItem>
         </SidebarMenu>
         <SidebarMenu>
           {items.map((item) => (
             <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton tooltip={item.title}>
+              <SidebarMenuButton
+                tooltip={item.title}
+                render={<Link href={item.url} />}
+              >
                 {item.icon}
-              <Link href={item.url} passHref>
                 <span>{item.title}</span>
-              </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
           ))}

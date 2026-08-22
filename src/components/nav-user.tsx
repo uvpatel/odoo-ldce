@@ -34,6 +34,7 @@ import {
 } from "lucide-react"
 import { authClient } from "@/lib/auth-client"
 import { ROLE_LABELS, type UserRole } from "@/lib/auth/roles"
+import Link from "next/link"
 
 function getInitials(name: string): string {
   if (!name) return "U"
@@ -140,7 +141,7 @@ export function NavUser({ user }: NavUserProps) {
                 onClick={() => router.push("/dashboard")}
               >
                 <CircleUserRoundIcon className="size-4" />
-                <span>Profile</span>
+                <span><Link href="/dashboard/profile">Profile</Link></span>
               </DropdownMenuItem>
               {(user.role === "admin" || user.role === "super_admin") && (
                 <DropdownMenuItem
@@ -148,7 +149,7 @@ export function NavUser({ user }: NavUserProps) {
                   onClick={() => router.push("/dashboard/users")}
                 >
                   <ShieldIcon className="size-4" />
-                  <span>User Management</span>
+                  <span><Link href="/dashboard/users">User Management</Link> </span>
                 </DropdownMenuItem>
               )}
               <DropdownMenuItem
@@ -156,14 +157,14 @@ export function NavUser({ user }: NavUserProps) {
                 onClick={() => router.push("/dashboard")}
               >
                 <CreditCardIcon className="size-4" />
-                <span>Billing</span>
+                <span><Link href="/dashboard/billing">Billing</Link></span>
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="cursor-pointer flex items-center gap-2"
                 onClick={() => router.push("/dashboard")}
               >
                 <BellIcon className="size-4" />
-                <span>Notifications</span>
+                <span><Link href="/dashboard/notifications">Notifications</Link></span>
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />

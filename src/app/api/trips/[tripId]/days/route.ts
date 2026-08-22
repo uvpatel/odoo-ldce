@@ -1,0 +1,41 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth/session";
+import { ItineraryService } from "@/server/services/itinerary.service";
+import { ItineraryRepository } from "@/server/repositories/itinerary.repository";
+import { createTripDaySchema } from "@/lib/validation";
+
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ tripId: string }> }
+) {
+  try {
+    const { tripId } = await params;
+    const days = await ItineraryRepository.findTripDays(tripId);
+    return NextResponse.json(days);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to fetch trip days";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+}
+
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ tripId: string }> }
+) {
+  try {
+    const { tripId } = await params;
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await req.json();
+    const validatedData = createTripDaySchema.parse({ ...body, tripId });
+
+    const newDay = await ItineraryService.addDay(user.id, validatedData, user.role);
+    return NextResponse.json(newDay, { status: 201 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to create trip day";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+}

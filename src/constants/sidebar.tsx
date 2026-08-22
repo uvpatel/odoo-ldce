@@ -55,7 +55,7 @@ export const baseNavMain: NavItem[] = [
   },
   {
     title: "My Trips",
-    url: "dashboard/trips",
+    url: "/dashboard/trips",
     icon: <PlaneIcon className="size-4" />,
     permission: null,
     items: [

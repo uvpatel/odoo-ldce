@@ -17,41 +17,41 @@ export const dashboardNav: NavItemConfig[] = [
   },
   {
     title: "My Trips",
-    href: "/trips",
+    href: "/dashboard/trips",
     icon: "Plane",
     children: [
       {
         title: "All Trips",
-        href: "/trips",
+        href: "/dashboard/trips",
       },
       {
         title: "Create Trip",
-        href: "/trips/new",
+        href: "/dashboard/trips/new",
       },
     ],
   },
   {
     title: "Discover",
-    href: "/discover",
+    href: "/dashboard/discover",
     icon: "Compass",
     children: [
       {
         title: "Overview",
-        href: "/discover",
+        href: "/dashboard/discover",
       },
       {
         title: "Cities",
-        href: "/discover/cities",
+        href: "/dashboard/discover/cities",
       },
       {
         title: "Activities",
-        href: "/discover/activities",
+        href: "/dashboard/discover/activities",
       },
     ],
   },
   {
     title: "Saved Places",
-    href: "/saved",
+    href: "/dashboard/saved",
     icon: "Bookmark",
   },
   {
